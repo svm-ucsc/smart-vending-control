@@ -26,7 +26,16 @@ def schedule_order(order:List(Item)) -> List:
   """Determines the order in which items should be dispensed based on location
   Returns sorted list of item objects.
   """
-  pass
+  row_num = 1
+  sorted_order = []
+  def get_row(row_num):
+    for i in order:
+      if i.location[0] == row_num:
+        sorted_order.append(i)
+  while len(sorted_order) < len(order):
+    get_row(row_num)
+    row_num += 1
+  return sorted_order
            
 def dispense(sorted_order:List(Item) -> str):
   """Dispenses all items in order. Returns success or failure"""
