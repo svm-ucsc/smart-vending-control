@@ -1,7 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
- 
-@dataclass
+
 class Item(): 
   def __init__(self, info:dict):
     self.UUID = info["UUID"]  # indicates order which item is part of 
@@ -11,18 +10,19 @@ class Item():
     self.density = info["density"]
     self.location = info["location"]  # tuple (row, column)
   
-def parse_payload(payload) -> List:
+def parse_payload(payload):
   """Reads JSON file and organizes information in Item dataclass.
   Returns a list of item objects.
   """
   order = []
-  with open(payload) as payload:
-    item_info = json.load(payload)
-    for i in item_info:
-      order.append(Item(i))
+  item_info = json.loads(payload)
+  for i in item_info:
+    print(i)
+    pass
+    #order.append(Item(i))
   return order
 
-def schedule_order(order:List(Item)) -> List:
+def schedule_order(order):
   """Determines the order in which items should be dispensed based on location
   Returns sorted list of item objects.
   """
@@ -37,7 +37,7 @@ def schedule_order(order:List(Item)) -> List:
     row_num += 1
   return sorted_order
            
-def dispense(sorted_order:List(Item) -> str):
+def dispense(sorted_order):
   """Dispenses all items in order. Returns success or failure"""
   pass
   
