@@ -1,26 +1,35 @@
 import paho.mqtt.client as mqtt
-
-@dataclass
-class Vending(): 
-  def __init__(self, order:dict): 
-    self.order = order
+import json
  
 @dataclass
 class Item(): 
-  def __init__(self, price, host = Vending object, initial_stock, packet = barcode packet): 
-    self.host = host  “Host machine” 
-    self.name = “”  
-    self.packet = packet 
-    self.nutrition = numpy array 
-    self.stock = stock 
-    self.image = ? 
+  def __init__(self, info:dict):
+    self.UUID = info["UUID"]  # indicates order which item is part of 
+    self.name = info["name"]
+    self.quantity = info["quantity"]
+    self.weight = info["weight"]
+    self.density = info["density"]
+    self.location = info["location"]  # tuple (row, column)
   
-def parse_payload(payload):
-  """Reads JSON file and organizes information in data classes"""
+def parse_payload(payload) -> List:
+  """Reads JSON file and organizes information in Item dataclass.
+  Returns a list of item objects.
+  """
+  order = []
+  with open(payload) as payload:
+    item_info = json.load(payload)
+    for i in item_info:
+      order.append(Item(i))
+  return order
+
+def schedule_order(order:List(Item)) -> List:
+  """Determines the order in which items should be dispensed based on location
+  Returns sorted list of item objects.
+  """
   pass
            
-def dispense():
-  """Dispenses all items in order"""
+def dispense(sorted_order:List(Item) -> str):
+  """Dispenses all items in order. Returns success or failure"""
   pass
   
 # The callback for when the client receives a CONNACK response from the server.
@@ -28,18 +37,26 @@ def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    client.subscribe("$SYS/#")
+    client.subscribe("topic")
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-  parse_payload(msg)
+  """Processes and dispenses order. Returns success or failure message upon completion
+  Published message consists of UUID for order and indication of success or failure
+  """
+  print(msg.topic+" "+str(msg.payload))
+  order = parse_payload(msg.payload)
+  sorted_order = schedule_order(order)
+  dispense(sorted_order)
+ 
   
 
 client = mqtt.Client()
+client.username_pw_set("lenatest", "password")
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.connect("mqtt.eclipseprojects.io", 1883, 60)
+client.connect("ec2-3-87-77-241.compute-1.amazonaws.com", 1884, 60)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
