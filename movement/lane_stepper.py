@@ -83,7 +83,7 @@ class ItemLaneStepper:
             exit(1)
 
     # Restores all GPIO pins associated with this stepper motor back to low state to turn off the
-    # motor--use this whenever you want the 
+    # motor--this must be called in order to clear the pin status at the end of execution 
     def reset(self):
         for pin in self.motor_pins:
             GPIO.output(pin, GPIO.LOW)
