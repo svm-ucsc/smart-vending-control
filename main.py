@@ -1,9 +1,10 @@
 import paho.mqtt.client as mqtt
 import json
 from Adafruit_MotorHAT import Adafruit_MotorHAT, Adafruit_StepperM
+import time 
 
-BASE_WEIGHT = 0 # base weight of inner platform on senors
-MAX_WEIGHT = 20  # maximum weight capacity of platform
+BASE_WEIGHT = 0  # weight of inner platform on senors
+MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
 PLAT_VOL = 20    # total volume of available space on the platform
 
 # MOTOR SETUP
@@ -23,12 +24,12 @@ class Item():
     self.name = info["name"]
     self.quantity = info["quantity"]  # number to be dispensed
     self.weight = info["weight"]
-    self.density = info["density"]
+    self.volume = info["volume"]
     self.row = info["row"]
     self.column = info["column"]
   
 def parse_payload(payload):
-  """Reads JSON file and organizes information in Item dataclass.
+  """Reads JSON payload and organizes information in Item dataclass.
   Returns a list of item objects.
   """
   order = []
@@ -41,18 +42,22 @@ def schedule_order(order):
   """Determines the order in which items should be dispensed based on location
   Returns sorted list of item objects.
   """
-  print("sorting:")
   row_num = 1
   sorted_order = []
-  def get_row(row_num):
+  while len(sorted_order) < len(order):
     for i in order:
       if i.row == row_num:
         sorted_order.append(i)
-  while len(sorted_order) < len(order):
-    get_row(row_num)
     row_num += 1
-  print(sorted_order)
   return sorted_order
+
+def move_platform(row) -> None:
+  """Controls motors to move platform to desired row"""
+  pass
+
+def release_item(Item) -> None:
+  """Controls motor to drop item"""
+  pass
            
 def dispense(sorted_order) -> bool:
   """Dispenses all items in order. Returns success or failure"""
@@ -62,12 +67,18 @@ def dispense(sorted_order) -> bool:
   # do dispensing and update weight and volume
   success = True
   pos = 0  # position in order
+  tol =  # tolerance of weight difference to confirm successful item drop
   while(pos < len(sorted_order)):
     item = sorted_order[pos]
     # move platform to correct row
     while(item.quantity > 0):
       # dispense item
       # check that platform weight changed
+      weight_change = # platform_weight - weight
+      if weight_change == 0:
+        # try dispensing again
+        # if fail second time:
+          success = False   
       # check if platform weight or volume exceeded
       if weight >= MAX_WEIGHT or volume >= PLAT_VOL:
         # pause addition of items and move platform to center to give items to user
@@ -87,6 +98,7 @@ def ItemsReceived() -> bool:
   weight = # get weight from sensors here
   while (weight > BASE_WEIGHT + tolerance):
     # wait some amount of time and then check weight again
+    time.sleep(3)
     weight =  # get weight from sensors
   return True
   
