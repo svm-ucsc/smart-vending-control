@@ -54,9 +54,32 @@ def schedule_order(order):
   print(sorted_order)
   return sorted_order
            
-def dispense(sorted_order):
+def dispense(sorted_order) -> bool:
   """Dispenses all items in order. Returns success or failure"""
-  pass
+  # check weight and volume as you go
+  weight = 0  # current weight on platform
+  volume = 0  # total volume of items on platform
+  # do dispensing and update weight and volume
+  success = True
+  pos = 0  # position in order
+  while(pos < len(sorted_order)):
+    item = sorted_order[pos]
+    # move platform to correct row
+    while(item.quantity > 0):
+      # dispense item
+      # check that platform weight changed
+      # check if platform weight or volume exceeded
+      if weight >= MAX_WEIGHT or volume >= PLAT_VOL:
+        # pause addition of items and move platform to center to give items to user
+        # check that items removed
+        ItemsReceived()
+        # reset variables
+        weight = 0
+        volume = 0
+      item.quantity -= 1
+    pos += 1
+  return success
+
 
 def ItemsReceived() -> bool:
   """Checks that items have been removed from the platform and the weight has returned to initial"""
