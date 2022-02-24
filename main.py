@@ -2,6 +2,10 @@ import paho.mqtt.client as mqtt
 import json
 from Adafruit_MotorHAT import Adafruit_MotorHAT, Adafruit_StepperM
 
+BASE_WEIGHT = 0 # base weight of inner platform on senors
+MAX_WEIGHT = 20  # maximum weight capacity of platform
+PLAT_VOL = 20    # total volume of available space on the platform
+
 # MOTOR SETUP
 # One hat can control 2 motors
 ### To define hat: 
@@ -15,7 +19,7 @@ from Adafruit_MotorHAT import Adafruit_MotorHAT, Adafruit_StepperM
 
 class Item(): 
   def __init__(self, info:dict):
-    self.UUID = info["UUID"]  # indicates order which item is part of 
+    self.UID = info["UID"]  # indicates order which item is part of 
     self.name = info["name"]
     self.quantity = info["quantity"]  # number to be dispensed
     self.weight = info["weight"]
@@ -53,6 +57,15 @@ def schedule_order(order):
 def dispense(sorted_order):
   """Dispenses all items in order. Returns success or failure"""
   pass
+
+def ItemsReceived() -> bool:
+  """Checks that items have been removed from the platform and the weight has returned to initial"""
+  tolerance = 0.1  # acceptable variation from the initial in grams
+  weight = # get weight from sensors here
+  while (weight > BASE_WEIGHT + tolerance):
+    # wait some amount of time and then check weight again
+    weight =  # get weight from sensors
+  return True
   
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
