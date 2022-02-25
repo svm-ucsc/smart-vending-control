@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
-from Adafruit_MotorHAT import Adafruit_MotorHAT, Adafruit_StepperM
+import movement.lane_stepper
 import time 
 
 BASE_WEIGHT = 0  # weight of inner platform on senors
@@ -67,14 +67,14 @@ def dispense(sorted_order) -> bool:
   # do dispensing and update weight and volume
   success = True
   pos = 0  # position in order
-  tol =  # tolerance of weight difference to confirm successful item drop
+  tol = 0 # tolerance of weight difference to confirm successful item drop
   while(pos < len(sorted_order)):
     item = sorted_order[pos]
     # move platform to correct row
     while(item.quantity > 0):
       # dispense item
       # check that platform weight changed
-      weight_change = # platform_weight - weight
+      weight_change = 0 # platform_weight - weight
       if weight_change == 0:
         # try dispensing again
         # if fail second time:
@@ -95,11 +95,11 @@ def dispense(sorted_order) -> bool:
 def ItemsReceived() -> bool:
   """Checks that items have been removed from the platform and the weight has returned to initial"""
   tolerance = 0.1  # acceptable variation from the initial in grams
-  weight = # get weight from sensors here
+  weight = 1 # get weight from sensors here
   while (weight > BASE_WEIGHT + tolerance):
     # wait some amount of time and then check weight again
     time.sleep(3)
-    weight =  # get weight from sensors
+    weight =  1 # get weight from sensors
   return True
   
 # The callback for when the client receives a CONNACK response from the server.
@@ -117,7 +117,7 @@ def on_message(client, userdata, msg):
   print(msg.topic+" "+str(msg.payload))
   order = parse_payload(msg.payload)
   sorted_order = schedule_order(order)
-  dispense(sorted_order)
+  # dispense(sorted_order)
   # publish success or failure message here ***
  
   
