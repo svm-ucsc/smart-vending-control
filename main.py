@@ -1,22 +1,11 @@
 import paho.mqtt.client as mqtt
 import json
-import movement.lane_stepper
+from movement import *
 import time 
 
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
 PLAT_VOL = 20    # total volume of available space on the platform
-
-# MOTOR SETUP
-# One hat can control 2 motors
-### To define hat: 
-# need unique address for each hat. default is 0x60
-# mhat1 = Adafruit_MotorHAT(addr = ???)
-### Item Lane motors:
-# name corresponding to item lane in row X column Y
-# laneXY = mhat1.getStepper(*insert step number here*, *insert port number here*)
-### Platform:
-# plat = mhat2.getStepper(*insert step number here*, *insert port number here*)
 
 class Item(): 
   def __init__(self, info:dict):
