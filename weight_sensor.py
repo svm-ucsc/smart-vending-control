@@ -158,6 +158,13 @@ class WeightSensor_HX711:
             return True
         else:
             return False
+    
+    def difference(self):
+        """
+        Returns difference between current weight and base weight
+        """
+        current = self.get_grams()
+        return current - self.get_base_weight()
 
     def get_grams(self, times=16):
         """
