@@ -1,11 +1,13 @@
 import paho.mqtt.client as mqtt
 import json
-from movement import *
+from movement.lane_stepper import *
 import time 
 
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
 PLAT_VOL = 20    # total volume of available space on the platform
+LANE_LOCATIONS = [(1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3)]
+SUCCESS = True  # indicates if order handled successfully
 
 class Item(): 
   def __init__(self, info:dict):
@@ -16,6 +18,32 @@ class Item():
     self.volume = info["volume"]
     self.row = info["row"]
     self.column = info["column"]
+
+class Machine():
+  def __init__(self, lane_locations=LANE_LOCATIONS):
+    self.lane_locations = lane_locations
+    self.lanes = {k:ItemLaneStepper(pins) for k in self.lane_locations}
+    def setup_lane_motors():
+      """Helper function to instantiate lane motors."""
+      pass
+    def setup_platform_motors():
+      """Helper function to instantiate plaform motors"""
+      pass
+  
+  def move_platform(self, row) -> None:
+    """Controls motors to move platform to desired row"""
+    pass
+
+  def release_item(self, item) -> None:
+    """Controls motor to drop item"""
+    motor = self.lanes[item.location]
+    # select motor to control based on item location
+    initial_weight = 0  # weight read from sensors prior to item drop
+    # keep rotating motors until item registered
+    weight = 0  # weight read from sensors
+    while (weight == initial_weight):
+      motor.rotate(direction="cw", speed=10, rotations=1)  # NOTE: change rotation to number needed to move belt a distance = space between notches
+      time.sleep(2)  # give item time to fall/settle
   
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
@@ -39,22 +67,13 @@ def schedule_order(order):
         sorted_order.append(i)
     row_num += 1
   return sorted_order
-
-def move_platform(row) -> None:
-  """Controls motors to move platform to desired row"""
-  pass
-
-def release_item(Item) -> None:
-  """Controls motor to drop item"""
-  pass
            
-def dispense(sorted_order) -> bool:
+def dispense(sorted_order) -> None:
   """Dispenses all items in order. Returns success or failure"""
   # check weight and volume as you go
   weight = 0  # current weight on platform
   volume = 0  # total volume of items on platform
   # do dispensing and update weight and volume
-  success = True
   pos = 0  # position in order
   tol = 0 # tolerance of weight difference to confirm successful item drop
   while(pos < len(sorted_order)):
@@ -67,7 +86,7 @@ def dispense(sorted_order) -> bool:
       if weight_change == 0:
         # try dispensing again
         # if fail second time:
-          success = False   
+          SUCCESS = False   
       # check if platform weight or volume exceeded
       if weight >= MAX_WEIGHT or volume >= PLAT_VOL:
         # pause addition of items and move platform to center to give items to user
@@ -78,7 +97,6 @@ def dispense(sorted_order) -> bool:
         volume = 0
       item.quantity -= 1
     pos += 1
-  return success
 
 
 def ItemsReceived() -> bool:
