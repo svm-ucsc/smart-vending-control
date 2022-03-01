@@ -8,7 +8,7 @@
 import RPi.GPIO as GPIO
 import time
 
-class WeightSenor_HX711:
+class WeightSensor_HX711:
 
     def __init__(self, dout, pd_sck, gain=128):
         """
