@@ -22,7 +22,7 @@ class WeightSensor_HX711:
         self.SCALE = 1
 
         self.prev_read = 0         # Holds a previous read value for comparison
-        self.base_weight = 0       # Holds the base value read during calibration
+        self.base_weight = 0       # Offset in grams
 
         # Setup the gpio pin numbering system
         GPIO.setmode(GPIO.BCM)
@@ -70,12 +70,12 @@ class WeightSensor_HX711:
         """
         self.OFFSET = offset
 
-    def set_base_weight(self, base_weight):
+    def set_base_weight(self, offset):
         """
-        Sets the base weight for comparison
-        :param base_weight: base weight
+        Set the base weight
+        :param offset: offset determined during calibration
         """
-        self.base_weight = base_weight
+        self.base_weight = offset / self.SCALE
     
     def set_prev_read(self, weight):
         """
@@ -148,11 +148,13 @@ class WeightSensor_HX711:
     
     def detect_change(self, tolerance) -> bool:
         """
-        Detects whether a change in weight has occurred
+        Detects whether a change in weight has occurred.
+        If change detected, stores newly recorded weight as previous read
         :param tolerance: minimum squared difference for change to be registered
         """
         new_weight = self.get_grams()
-        if (new_weight - self.prev_weight) ** 2 >= tolerance:
+        if (new_weight - self.prev_read) ** 2 >= tolerance:
+            self.set_prev_read(new_weight)
             return True
         else:
             return False
@@ -175,7 +177,6 @@ class WeightSensor_HX711:
         """
         avg = self.read_average(times)
         self.set_offset(avg)
-        self.set_base_weight(avg)
         self.set_prev_read(avg)
 
     def power_down(self):
