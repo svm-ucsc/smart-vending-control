@@ -44,11 +44,11 @@ class WeightSensor_HX711:
     def set_gain(self, gain=128):
 
         try:
-            if gain is 128:
+            if gain == 128:
                 self.GAIN = 3
-            elif gain is 64:
+            elif gain == 64:
                 self.GAIN = 2
-            elif gain is 32:
+            elif gain == 32:
                 self.GAIN = 1
         except:
             self.GAIN = 3  # Sets default GAIN at 128
@@ -199,7 +199,7 @@ class WeightSensor_HX711:
         """
         GPIO.output(self.PD_SCK, False)
 
-# A test script to play with the sensor functionalitty
+# A test script to play with the sensor functionality
 def main():
   my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
   my_sensor.calibrate()
