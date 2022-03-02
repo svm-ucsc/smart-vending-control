@@ -198,3 +198,15 @@ class WeightSensor_HX711:
         Power the chip up
         """
         GPIO.output(self.PD_SCK, False)
+
+# A test script to play with the sensor functionalitty
+def main():
+  my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
+  my_sensor.calibrate()
+   
+  while(True):
+      print(my_sensor.prev_read)
+      time.sleep(5)
+
+if __name__ == '__main__':
+    main()
