@@ -3,7 +3,10 @@ import json
 from movement.lane_stepper import *
 from weight_sensor import *
 import time 
+import threading
 
+NUM_ROWS = 4  # number of rows in machine
+NUM_COLS = 3  # number of columns in machine
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
 PLAT_VOL = 20    # total volume of available space on the platform
@@ -14,22 +17,29 @@ SUCCESS = True  # indicates if order handled successfully
 
 class Item(): 
   def __init__(self, info:dict):
-    self.UID = info["UID"]  # indicates order which item is part of 
+    self.UID = info["UID"]  # indicates order that item is a part of 
     self.name = info["name"]
-    self.quantity = info["quantity"]  # number to be dispensed
-    self.weight = info["weight"]
-    self.volume = info["volume"]
+    self.quantity = info["quantity"]  # amount to be dispensed
+    self.weight = info["weight"]      # weight of one unit
+    self.volume = info["volume"]      # volume of one unit
     self.row = info["row"]
     self.column = info["column"]
+
+  def decrement(self):
+    """Decrement item quantity and return new value"""
+    self.quantity = self.quantity - 1
+    return self.quantity
 
 class Machine():
   def __init__(self, stepper_pins=STEPPER_PINS, sensor_pins=SENSOR_PINS, lane_locations=LANE_LOCATIONS, \
                plat_vol=PLAT_VOL, max_weight=MAX_WEIGHT):
     self.lane_locations = lane_locations
     self.lanes = {k:ItemLaneStepper(self.stepper_pins) for k in self.lane_locations}
-    self.items_dispensed = []
-    self.plat_vol = PLAT_VOL   # maximum item volume capacity of platform
+    self.items_on_plat = []
+    self.plat_vol = PLAT_VOL       # maximum item volume capacity of platform
     self.plat_weight = max_weight  # maximum weight capacity of platform
+    self.plat_full = False         # indicates whether platform has reached max capacity
+    self.plat_location = 0         # current row location of platform
 
     # set up weight sensing
     self.sensor = WeightSensor_HX711(self.sensor_pins, gain=128)
@@ -45,29 +55,66 @@ class Machine():
   def move_platform(self, row) -> None:
     """Controls motors to move platform to desired row"""
     pass
-
-  def release_item(self, item) -> None:
-    """Controls motor to drop item"""
-    motor = self.lanes[item.location] # motor to control based on item location
-    tol = 1 # tolerance of weight difference in grams to confirm successful item drop
-    # rotate motors until item registered
-    while (self.sensor.detect_change() == False):
-      motor.rotate(direction="cw", speed=10, rotations=1)  # NOTE: change rotation to number needed to move belt a distance = space between notches
-      time.sleep(1)  # give item time to fall/settle
   
   @property
   def available_space(self):
     used_volume = 0
-    for i in self.items_dispensed:
+    for i in self.items_on_plat:
       used_volume += i.volume
     return self.plat_vol - used_volume
   
   @property
   def available_weight(self):
     used_weight = 0
-    for i in self.items_dispensed:
+    for i in self.items_on_plat:
       used_weight += i.weight
     return self.plat_weight - used_weight
+
+  def dispense(self, sorted_order) -> None:
+    """Dispenses all items in order."""
+    pos = 0  # position in sorted order
+    next_items = set() # set of items to dispense on the same row
+    while(pos < len(sorted_order)):
+      if len(next_items == 0):
+        next_items = {x for x in sorted_order if x.row == sorted_order[pos].row}
+        row = list(next_items).pop().row
+      if self.plat_location != row:
+        self.move_platform(row=row)
+      for item in next_items:
+        thread = threading.Thread(target=self.drop_item, args=(item))
+        thread.start()
+        thread.join()
+        num = item.decrement()
+        # remove item from set if full quantity has been dropped
+        if num == 0:
+          next_items.remove(item) 
+          pos += 1
+
+  def drop_item(self, item) -> None:
+    """Releases an item from its item lane onto the platform"""
+    lock = threading.Lock()
+    lock.acquire(blocking=True, timeout=- 1)
+    w = self.available_weight - item.weight
+    v = self.available_space - item.volume
+    if self.plat_full == True or  w < 0 or  v < 0:
+      self.deliver()
+    elif w == 0 or v == 0:
+      self.plat_full = True
+    lock.release()
+
+    motor = self.lanes[item.location] # motor to control based on item location
+    tol = 1 # tolerance of weight difference in grams to confirm successful item drop
+    # rotate motors until item registered
+    while (self.sensor.detect_change() == False):
+      motor.rotate(direction="cw", speed=10, rotations=1)  # NOTE: change rotation to number needed to move belt a distance = space between notches
+      time.sleep(1)  # give item time to fall/settle
+    self.items_on_plat.append(item)
+
+  def deliver(self):
+    """Moves platform to center and waits for user to take items"""
+    self.move_platform(row=0)
+    self.ItemsReceived()
+    self.plat_full == False
 
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
@@ -75,27 +122,9 @@ class Machine():
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
+    self.items_on_plat = []
     return True
-  
-  def dispense(self, sorted_order) -> None:
-    """Dispenses all items in order. Returns success or failure"""
-    pos = 0  # position in sorted order
-    while(pos < len(sorted_order)):
-      item = sorted_order[pos]
-      # move platform to correct row here NOTE: need to implement this
-      while(item.quantity > 0):
-        # check platform capacity
-        if self.available_weight < item.weight or self.available_space < item.volume:
-          # pause addition of items and move platform to center to give items to user NOTE: need to implement this
-          # check that items removed
-          self.ItemsReceived()
-          # reset variables
-          self.items_dispensed = []
-        self.release_item(item)
-        self.items_dispensed.append(item)        
-        item.quantity -= 1
-      pos += 1
-  
+   
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
   Returns a list of item objects.
