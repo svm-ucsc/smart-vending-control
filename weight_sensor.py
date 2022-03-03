@@ -7,6 +7,20 @@
 
 import RPi.GPIO as GPIO
 import time
+from movement.lane_stepper import *
+
+CALIBRATOR_PINS = []  # GPIO pins for calibrator stepper motor
+CALIBRATOR_STEP_MODE = []  # step mode for calibrator stepper motor
+CALIBRATION_WEIGHT = 10  # known weight used for calibration (grams)
+
+class Calibrator(ItemLaneStepper):
+    """Stepper motor used specifically for calibration"""
+    def __init__(self, pinA, pinB, pinC, pinD, step_mode):
+        super().__init__(pinA, pinB, pinC, pinD, step_mode)
+
+    def move(self):
+        """Rotate motor to calibrate weight sesor"""
+        pass
 
 class WeightSensor_HX711:
 
@@ -23,6 +37,7 @@ class WeightSensor_HX711:
 
         self.prev_read = 0         # Holds a previous read value for comparison
         self.base_weight = 0       # Offset in grams
+        self.calibrator = Calibrator()  # calibration stepper motor
 
         # Setup the gpio pin numbering system
         GPIO.setmode(GPIO.BCM)
@@ -153,7 +168,7 @@ class WeightSensor_HX711:
         :param tolerance: minimum squared difference for change to be registered
         """
         new_weight = self.get_grams()
-        if (new_weight - self.prev_read) ** 2 >= tolerance:
+        if (new_weight - self.prev_read) ** 2 > tolerance:
             self.set_prev_read(new_weight)
             return True
         else:
@@ -182,9 +197,14 @@ class WeightSensor_HX711:
         Tare functionality for calibration
         :param times: set value to calculate average
         """
-        avg = self.read_average(times)
-        self.set_offset(avg)
-        self.set_prev_read(avg)
+        # Get offset with no weight applied
+        offset = self.read_average(times)
+        self.set_offset(offset)
+        # Move calibrator to apply known weight
+        self.calibrator.move()
+        # compute scale
+        new_weight = self.read_average(times) - self.get_offset()
+        self.set_scale(new_weight/CALIBRATION_WEIGHT)
 
     def power_down(self):
         """
@@ -205,6 +225,7 @@ def main():
   my_sensor.calibrate()
    
   while(True):
+      my_sensor.detect_change(tolerance=0)
       print(my_sensor.prev_read)
       time.sleep(5)
 
