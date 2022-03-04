@@ -123,14 +123,14 @@ def main():
 	p = i2c_setup()
 
 	my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
-	my_stepper_B = ItemLaneStepper(p[0][4], p[0][5], p[0][6], p[0][7], FULL_STEP)
+	my_stepper_B = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
 
 	thread_A = threading.Thread(target=move, args=(my_stepper_A,))
 	thread_B = threading.Thread(target=move, args=(my_stepper_B,))
 
 	try:
 		thread_A.start()
-		#thread_B.start()
+		thread_B.start()
 	except:
 		print("Unable to start a new thread")
 
