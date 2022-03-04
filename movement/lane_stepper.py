@@ -52,7 +52,7 @@ class ItemLaneStepper:
     #
     # Parameters:
     # -direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
-    # -speed: used to determine how quickly each step takes--bounded between [0, 1500]
+    # -speed: used to determine how quickly each step takes--bounded between [0, ???]
     # -rotations: number of rotations to undertake
     def rotate(self, direction:str, speed:int, rotations:float):
         step_sleep = 1 / speed;
@@ -82,6 +82,10 @@ class ItemLaneStepper:
                 self.motor_pins[pin].value = False
             exit(1)
 
+    def reset(self):
+        for pin in range(0, len(self.motor_pins)):
+            self.motor_pins[pin].value=False
+
 # A test script to play with the functionality of the stepper motors for the item lanes
 def main():
 	# Will need to initialize pins first before going in and using them per stepper (perhaps
@@ -110,15 +114,25 @@ def main():
 
 		return pins
 
+	def move(my_stepper):
+		my_stepper.rotate('cw', 1000, 0.5)
+		my_stepper.rotate('ccw', 1000, 1)
+		my_stepper.rotate('cw', 1000, 1)
+		my_stepper.reset()
+
 	p = i2c_setup()
 
-	my_stepper = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
+	my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
+	my_stepper_B = ItemLaneStepper(p[0][4], p[0][5], p[0][6], p[0][7], FULL_STEP)
 
-	my_stepper.rotate('cw', 1500, 0.5)
-	my_stepper.rotate('ccw', 1500, 1)
-	my_stepper.rotate('cw', 1500, 1)
+	thread_A = threading.Thread(target=move, args=(my_stepper_A,))
+	thread_B = threading.Thread(target=move, args=(my_stepper_B,))
 
-	my_stepper.reset()
+	try:
+		thread_A.start()
+		#thread_B.start()
+	except:
+		print("Unable to start a new thread")
 
 if __name__ == '__main__':
     main()
