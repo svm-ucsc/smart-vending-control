@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import json
 from movement.lane_stepper import *
+from movement.platform_stepper import *
 from weight_sensor import *
 import time 
 import threading
@@ -40,6 +41,7 @@ class Machine():
     self.plat_weight = max_weight  # maximum weight capacity of platform
     self.plat_full = False         # indicates whether platform has reached max capacity
     self.plat_location = 0         # current row location of platform
+    self.lock = threading.Lock()
 
     # set up weight sensing
     self.sensor = WeightSensor_HX711(self.sensor_pins, gain=128)
@@ -92,15 +94,14 @@ class Machine():
 
   def drop_item(self, item) -> None:
     """Releases an item from its item lane onto the platform"""
-    lock = threading.Lock()
-    lock.acquire(blocking=True, timeout=- 1)
+    self.lock.acquire(blocking=True, timeout=- 1)
     w = self.available_weight - item.weight
     v = self.available_space - item.volume
     if self.plat_full == True or  w < 0 or  v < 0:
       self.deliver()
     elif w == 0 or v == 0:
       self.plat_full = True
-    lock.release()
+    self.lock.release()
 
     motor = self.lanes[item.location] # motor to control based on item location
     tol = 1 # tolerance of weight difference in grams to confirm successful item drop
