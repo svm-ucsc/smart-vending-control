@@ -8,8 +8,11 @@
 # Speed Var. Ratio: 1/64
 # Stride Angle: 5.625 deg. -> NOTE: 360 deg = 4096 * (5.625 / 64)
 
-import RPi.GPIO as GPIO
+import board
+import busio
+import digitalio
 import time
+from adafruit_mcp230xx.mcp23017 import MCP23017
 
 # Define the sequence for the full step (more granular) rotation
 FULL_STEP = [[1,0,0,1],
@@ -28,7 +31,7 @@ HALF_STEP = [[1,0,0,0],
              [0,0,1,1]]
 
 class ItemLaneStepper:
-    def __init__(self, pinA:int, pinB:int, pinC:int, pinD:int, step_mode:list):
+    def __init__(self, pinA, pinB, pinC, pinD, step_mode:list):
         # Helper function to set up the default position/values for the stepper motor
         def pin_setup(pins:list):
             GPIO.setmode(GPIO.BCM)
