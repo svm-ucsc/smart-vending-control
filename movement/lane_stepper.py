@@ -11,37 +11,34 @@
 import board
 import busio
 import digitalio
+import threading
 import time
 from adafruit_mcp230xx.mcp23017 import MCP23017
 
+MCP_TOTAL = 2											# How many MCP23017 boards are connected
+PINS_PER_MCP = 16										# Number of GPIOs per MCP
+
 # Define the sequence for the full step (more granular) rotation
-FULL_STEP = [[1,0,0,1],
-             [1,0,0,0],
-             [1,1,0,0],
-             [0,1,0,0],
-             [0,1,1,0],
-             [0,0,1,0],
-             [0,0,1,1],
-             [0,0,0,1]]
+FULL_STEP = [[True ,False,False,True ],
+             [True ,False,False,False],
+             [True ,True ,False,False],
+             [False,True ,False,False],
+             [False,True ,True ,False],
+             [False,False,True ,False],
+             [False,False,True ,True ],
+             [False,False,False,True ]]
+
 
 # Define the sequence for the half step (less granular) rotation
-HALF_STEP = [[1,0,0,0],
-             [1,1,0,0],
-             [0,1,1,0],
-             [0,0,1,1]]
-
+HALF_STEP = [[True ,False,False,False],
+             [True ,True ,False,False],
+             [False,True ,True ,False],
+             [False,False,True ,True ]]
+             
 class ItemLaneStepper:
     def __init__(self, pinA, pinB, pinC, pinD, step_mode:list):
-        # Helper function to set up the default position/values for the stepper motor
-        def pin_setup(pins:list):
-            GPIO.setmode(GPIO.BCM)
-            for pin in pins:
-                GPIO.setup(pin, GPIO.OUT)
-                GPIO.output(pin, GPIO.LOW)
-
         self.motor_pins = [pinA, pinB, pinC, pinD]              # Defined in terms of GPIO pin #s
-        self.step_mode = step_mode				# FULL_STEP or HALF_STEP
-        pin_setup(self.motor_pins)				# Set up GPIO modes for pins
+        self.step_mode = step_mode								# FULL_STEP or HALF_STEP
   
     # Return the current step mode of this ItemLaneStepper 
     def get_step_mode(self) -> str:
@@ -68,7 +65,7 @@ class ItemLaneStepper:
                 # Set each of the pins, and for each pin, find the */*/*/* layout for the
                 # pins that should be on or off for a given step
                 for pin in range(0, len(self.motor_pins)):
-                    GPIO.output(self.motor_pins[pin], self.step_mode[motor_step_counter][pin])
+                    self.motor_pins[pin].value = self.step_mode[motor_step_counter][pin]
 
                 if direction == 'cw':
                     motor_step_counter = (motor_step_counter - 1) % len(self.step_mode)
@@ -76,31 +73,52 @@ class ItemLaneStepper:
                     motor_step_counter = (motor_step_counter + 1) % len(self.step_mode)
                 else:
                     print("Unexpected direction--should be \'cw\' or \'ccw\'")
-                    self.reset()
                     exit(1)
 
                 time.sleep(step_sleep)
 
         except KeyboardInterrupt:
-            self.reset()
+            for pin in range(0, len(self.motor_pins)):
+                self.motor_pins[pin].value = False
             exit(1)
-
-    # Restores all GPIO pins associated with this stepper motor back to low state to turn off the
-    # motor--this must be called in order to clear the pin status at the end of execution 
-    def reset(self):
-        for pin in self.motor_pins:
-            GPIO.output(pin, GPIO.LOW)
-        GPIO.cleanup()
 
 # A test script to play with the functionality of the stepper motors for the item lanes
 def main():
-   my_stepper = ItemLaneStepper(17, 18, 27, 22, FULL_STEP)
+	# Will need to initialize pins first before going in and using them per stepper (perhaps
+	# include this as a part of the bigger Vending Machine object?)
+	#
+	# Returns 2D list that contains all the pins mapped to each MCP board
+	def i2c_setup():
+		i2c = busio.I2C(board.SCL, board.SDA)
+	
+		mcp = []											# Address MCPs directly
+		pins = [[None] * PINS_PER_MCP] * MCP_TOTAL			# Return a list with [mcp][pin] indexing
 
-   my_stepper.rotate('cw', 1500, 0.5)
-   my_stepper.rotate('ccw', 1500, 1)
-   my_stepper.rotate('cw', 1500, 1)
+		# Set up all of the pins as output pins
+		for i in range(0, MCP_TOTAL):
+			# For each MCP, we have a list of pins we can address such that the first board at 0x20
+			# has a set of 16 pins numbered 0-15, 0x21 has the same, and so on
+			mcp.append(MCP23017(i2c, address=(0x20 + i)))
+			pins.insert(i, [])
 
-   my_stepper.reset()
+			for j in range(0, PINS_PER_MCP):
+				# Note that there are only 16 GPIOs per MCP23017
+				pins[i].insert(j, mcp[i].get_pin(j))
+		
+				# Switch the pins to output mode (default value assumed False)
+				pins[i][j].switch_to_output(value=False)
+
+		return pins
+
+	p = i2c_setup()
+
+	my_stepper = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
+
+	my_stepper.rotate('cw', 1500, 0.5)
+	my_stepper.rotate('ccw', 1500, 1)
+	my_stepper.rotate('cw', 1500, 1)
+
+	my_stepper.reset()
 
 if __name__ == '__main__':
     main()
