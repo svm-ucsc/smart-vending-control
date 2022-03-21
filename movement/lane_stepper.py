@@ -74,7 +74,8 @@ class ItemLaneStepper:
                 else:
                     print("Unexpected direction--should be \'cw\' or \'ccw\'")
                     exit(1)
-
+				
+                #print(self.motor_pins)
                 time.sleep(step_sleep)
 
         except KeyboardInterrupt:
@@ -111,27 +112,43 @@ def main():
 		
 				# Switch the pins to output mode (default value assumed False)
 				pins[i][j].switch_to_output(value=False)
-				pins[i][j].pull = digitalio.Pull.UP
+				#pins[i][j].pull = digitalio.Pull.UP
 
 		return pins
 
-	def move(my_stepper):
+	def move():
+		p = i2c_setup()
+		my_stepper = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
 		my_stepper.rotate('cw', 1000000, 0.5)
 		my_stepper.rotate('ccw', 1000000, 1)
 		my_stepper.rotate('cw', 1000000, 1)
 		my_stepper.reset()
 
-	p = i2c_setup()
 
-	my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
-	my_stepper_B = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
+	def move1():
+		p = i2c_setup()
+		my_stepper = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
+		my_stepper.rotate('cw', 1000000, 0.5)
+		my_stepper.rotate('ccw', 1000000, 1)
+		my_stepper.rotate('cw', 1000000, 1)
+		my_stepper.reset()
 
-	thread_A = threading.Thread(target=move, args=(my_stepper_A,))
-	thread_B = threading.Thread(target=move, args=(my_stepper_B,))
+	#p = i2c_setup()
+
+	#my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
+	#my_stepper_B = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
+	#my_stepper_C = ItemLaneStepper(p[1][4], p[1][5], p[1][6], p[1][7], FULL_STEP)
+	
+
+	thread_A = threading.Thread(target=move)
+	thread_B = threading.Thread(target=move1)
+	#thread_B = threading.Thread(target=move, args=(my_stepper_B,))
+	#thread_C = threading.Thread(target=move, args=(my_stepper_C,))
 
 	try:
 		thread_A.start()
 		thread_B.start()
+		#thread_C.start()
 	except:
 		print("Unable to start a new thread")
 
