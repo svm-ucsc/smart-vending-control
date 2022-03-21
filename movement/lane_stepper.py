@@ -111,13 +111,14 @@ def main():
 		
 				# Switch the pins to output mode (default value assumed False)
 				pins[i][j].switch_to_output(value=False)
+				pins[i][j].pull = digitalio.Pull.UP
 
 		return pins
 
 	def move(my_stepper):
-		my_stepper.rotate('cw', 1000, 0.5)
-		my_stepper.rotate('ccw', 1000, 1)
-		my_stepper.rotate('cw', 1000, 1)
+		my_stepper.rotate('cw', 1000000, 0.5)
+		my_stepper.rotate('ccw', 1000000, 1)
+		my_stepper.rotate('cw', 1000000, 1)
 		my_stepper.reset()
 
 	p = i2c_setup()
