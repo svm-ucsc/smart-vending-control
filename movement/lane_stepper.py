@@ -36,8 +36,17 @@ HALF_STEP = [[True ,False,False,False],
              [False,False,True ,True ]]
              
 class ItemLaneStepper:
-    def __init__(self, pinA, pinB, pinC, pinD, step_mode:list):
-        self.motor_pins = [pinA, pinB, pinC, pinD]              # Defined in terms of GPIO pin #s
+	# Initialize an item lane's stepper motor*
+	#
+	# *NOTE: this setup assumes that only one stepper motor is hooked up to one MCP23017
+	# *TODO: must expand this to support true multithreading
+    def __init__(self, channel, step_mode:list):
+        pins = i2c_setup()
+
+        # Set the channel for which motor we want to control as well as the pins required
+        self.channel = channel
+        self.motor_pins = [pins[channel][0], pins[channel][1], pins[channel][2], pins[channel][3]] 
+
         self.step_mode = step_mode								# FULL_STEP or HALF_STEP
   
     # Return the current step mode of this ItemLaneStepper 
@@ -87,73 +96,50 @@ class ItemLaneStepper:
         for pin in range(0, len(self.motor_pins)):
             self.motor_pins[pin].value=False
 
+
+# Will need to initialize pins first before going in and using them per stepper (perhaps
+# include this as a part of the bigger Vending Machine object?)
+#
+# Returns 2D list that contains all the pins mapped to each MCP board
+def i2c_setup():
+	i2c = busio.I2C(board.SCL, board.SDA)
+
+	mcp = []											# Address MCPs directly
+	pins = [[None] * PINS_PER_MCP] * MCP_TOTAL			# Return a list with [mcp][pin] indexing
+
+	# Set up all of the pins as output pins
+	for i in range(0, MCP_TOTAL):
+		# For each MCP, we have a list of pins we can address such that the first board at 0x20
+		# has a set of 16 pins numbered 0-15, 0x21 has the same, and so on
+		mcp.append(MCP23017(i2c, address=(0x20 + i)))
+		pins.insert(i, [])
+
+		for j in range(0, PINS_PER_MCP):
+			# Note that there are only 16 GPIOs per MCP23017
+			pins[i].insert(j, mcp[i].get_pin(j))
+		
+			# Switch the pins to output mode (default value assumed False)
+			pins[i][j].switch_to_output(value=False)
+			#pins[i][j].pull = digitalio.Pull.UP
+
+	return pins
+
+
 # A test script to play with the functionality of the stepper motors for the item lanes
 def main():
-	# Will need to initialize pins first before going in and using them per stepper (perhaps
-	# include this as a part of the bigger Vending Machine object?)
-	#
-	# Returns 2D list that contains all the pins mapped to each MCP board
-	def i2c_setup():
-		i2c = busio.I2C(board.SCL, board.SDA)
-	
-		mcp = []											# Address MCPs directly
-		pins = [[None] * PINS_PER_MCP] * MCP_TOTAL			# Return a list with [mcp][pin] indexing
-
-		# Set up all of the pins as output pins
-		for i in range(0, MCP_TOTAL):
-			# For each MCP, we have a list of pins we can address such that the first board at 0x20
-			# has a set of 16 pins numbered 0-15, 0x21 has the same, and so on
-			mcp.append(MCP23017(i2c, address=(0x20 + i)))
-			pins.insert(i, [])
-
-			for j in range(0, PINS_PER_MCP):
-				# Note that there are only 16 GPIOs per MCP23017
-				pins[i].insert(j, mcp[i].get_pin(j))
-		
-				# Switch the pins to output mode (default value assumed False)
-				pins[i][j].switch_to_output(value=False)
-				#pins[i][j].pull = digitalio.Pull.UP
-
-		return pins
-
-	def move():
-		p = i2c_setup()
-		my_stepper = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
-		my_stepper.rotate('cw', 1000000, 0.5)
-		my_stepper.rotate('ccw', 1000000, 1)
-		my_stepper.rotate('cw', 1000000, 1)
+	def move(my_stepper):
+		my_stepper.rotate('cw', 1000000000, 0.5)
+		my_stepper.rotate('ccw', 1000000000, 1)
+		my_stepper.rotate('cw', 1000000000, 1)
 		my_stepper.reset()
 
+	my_stepper_A = ItemLaneStepper(0, FULL_STEP)
+	my_stepper_B = ItemLaneStepper(1, FULL_STEP)
+	my_stepper_C = ItemLaneStepper(2, FULL_STEP)
 
-	def move1():
-		p = i2c_setup()
-		my_stepper = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
-		my_stepper.rotate('cw', 1000000, 0.5)
-		my_stepper.rotate('ccw', 1000000, 1)
-		my_stepper.rotate('cw', 1000000, 1)
-		my_stepper.reset()
-
-	def move2():
-		p = i2c_setup()
-		my_stepper = ItemLaneStepper(p[2][0], p[2][1], p[2][2], p[2][3], FULL_STEP)
-		my_stepper.rotate('cw', 1000000, 0.5)
-		my_stepper.rotate('ccw', 1000000, 1)
-		my_stepper.rotate('cw', 1000000, 1)
-		my_stepper.reset()
-
-
-	#p = i2c_setup()
-
-	#my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
-	#my_stepper_B = ItemLaneStepper(p[1][0], p[1][1], p[1][2], p[1][3], FULL_STEP)
-	#my_stepper_C = ItemLaneStepper(p[1][4], p[1][5], p[1][6], p[1][7], FULL_STEP)
-	
-
-	thread_A = threading.Thread(target=move)
-	thread_B = threading.Thread(target=move1)
-	thread_C = threading.Thread(target=move2)
-	#thread_B = threading.Thread(target=move, args=(my_stepper_B,))
-	#thread_C = threading.Thread(target=move, args=(my_stepper_C,))
+	thread_A = threading.Thread(target=move, args=(my_stepper_A,))
+	thread_B = threading.Thread(target=move, args=(my_stepper_B,))
+	thread_C = threading.Thread(target=move, args=(my_stepper_C,))
 
 	try:
 		thread_A.start()
