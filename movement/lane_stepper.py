@@ -15,7 +15,7 @@ import threading
 import time
 from adafruit_mcp230xx.mcp23017 import MCP23017
 
-MCP_TOTAL = 2											# How many MCP23017 boards are connected
+MCP_TOTAL = 3											# How many MCP23017 boards are connected
 PINS_PER_MCP = 16										# Number of GPIOs per MCP
 
 # Define the sequence for the full step (more granular) rotation
@@ -133,6 +133,15 @@ def main():
 		my_stepper.rotate('cw', 1000000, 1)
 		my_stepper.reset()
 
+	def move2():
+		p = i2c_setup()
+		my_stepper = ItemLaneStepper(p[2][0], p[2][1], p[2][2], p[2][3], FULL_STEP)
+		my_stepper.rotate('cw', 1000000, 0.5)
+		my_stepper.rotate('ccw', 1000000, 1)
+		my_stepper.rotate('cw', 1000000, 1)
+		my_stepper.reset()
+
+
 	#p = i2c_setup()
 
 	#my_stepper_A = ItemLaneStepper(p[0][0], p[0][1], p[0][2], p[0][3], FULL_STEP)
@@ -142,13 +151,14 @@ def main():
 
 	thread_A = threading.Thread(target=move)
 	thread_B = threading.Thread(target=move1)
+	thread_C = threading.Thread(target=move2)
 	#thread_B = threading.Thread(target=move, args=(my_stepper_B,))
 	#thread_C = threading.Thread(target=move, args=(my_stepper_C,))
 
 	try:
 		thread_A.start()
 		thread_B.start()
-		#thread_C.start()
+		thread_C.start()
 	except:
 		print("Unable to start a new thread")
 
