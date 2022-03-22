@@ -128,9 +128,7 @@ def i2c_setup():
 # A test script to play with the functionality of the stepper motors for the item lanes
 def main():
 	def move(my_stepper):
-		my_stepper.rotate('cw', 1000000000, 0.5)
-		my_stepper.rotate('ccw', 1000000000, 1)
-		my_stepper.rotate('cw', 1000000000, 1)
+		my_stepper.rotate('cw', 15000, 1)
 		my_stepper.reset()
 
 	my_stepper_A = ItemLaneStepper(0, FULL_STEP)
