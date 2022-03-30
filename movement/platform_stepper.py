@@ -86,15 +86,29 @@ class PlatformStepper:
                 time.sleep(step_sleep)
 
         except KeyboardInterrupt:
-            print(self.position)
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
+
             exit(1)
+
+    # Resets the position of the stepper motor back to the currently-defined zero position
+    def reset_position(self):
+        if self.position != 0:
+            pass
+
+    # Sets the CURRENT position of the stepper motor as the new zero position--if you want to move
+    # the motor's position back to the original position, call reset_position() instead!
+    def zero_position(self):
+        self.position = 0
+
+        with open(self.pos_file, "w") as f:
+            f.write(str(self.position))
 
 def main():
 	# Define two functions to test out the motors simultaneously
     def test_motor_A():
         my_stepperA = PlatformStepper(0)
+        my_stepperA.zero_position()
         my_stepperA.rotate('ccw', 100, 3)
         
         print(my_stepperA.get_position())
