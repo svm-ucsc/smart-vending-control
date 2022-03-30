@@ -25,8 +25,12 @@ class PlatformStepper:
             exit(1)
         elif channel == 0:
             self.step_channel = self.kit.stepper1
+
+            # Load position for stepper 1 from the file, check if it is 
         else:
             self.step_channel = self.kit.stepper2
+
+            # Load position for stepper 2
 
     # Return the current motor channel for this stepper motor on the HAT
     def get_channel(self) -> int:
@@ -53,7 +57,7 @@ class PlatformStepper:
 
         try:
             for i in range(step_count):
-                self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
+                print(self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE))
                 time.sleep(step_sleep)
 
         except KeyboardInterrupt:
@@ -63,24 +67,24 @@ def main():
 	# Define two functions to test out the motors simultaneously
 	def test_motor_A():
 		my_stepperA = PlatformStepper(0)
-		my_stepperA.rotate('cw', 10000, 3)
-		my_stepperA.rotate('ccw', 500, 2)
-		my_stepperA.rotate('cw', 100, HALF_TURN)
+		my_stepperA.rotate('cw', 1000, 3)
+		my_stepperA.rotate('ccw', 100, 3)
+		#my_stepperA.rotate('cw', 100, HALF_TURN)
 
 	def test_motor_B():
 		my_stepperB = PlatformStepper(1)
 		my_stepperB.rotate('cw', 10000, 3)
-		my_stepperB.rotate('ccw', 500, 2)
+		my_stepperB.rotate('ccw', 500, 3)
 		my_stepperB.rotate('cw', 100, HALF_TURN)
 
 	# Define two threds w/ each function listed above
 	thread_A = threading.Thread(target=test_motor_A)
-	thread_B = threading.Thread(target=test_motor_B)
+	#thread_B = threading.Thread(target=test_motor_B)
 
 	# Launch the threads
 	try:
 		thread_A.start()
-		thread_B.start()
+		#thread_B.start()
 	except:
 		print("Unable to start a new thread.")
 
