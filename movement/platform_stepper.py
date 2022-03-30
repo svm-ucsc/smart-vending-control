@@ -154,7 +154,7 @@ def main():
         my_stepperB.rotate('ccw', 500, 3)
         my_stepperB.rotate('cw', 100, HALF_TURN)
 
-    # Define two threds w/ each function listed above
+    # Define two threads w/ each function listed above
     #thread_A = threading.Thread(target=test_motor_A)
     #thread_B = threading.Thread(target=test_motor_B)
 
