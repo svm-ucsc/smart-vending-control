@@ -49,7 +49,6 @@ class PlatformStepper:
             # Load position for stepper 0 from the file
             with open(self.pos_file, "r") as f:
                 self.position = int(f.read())
-
         else:
             self.step_channel = self.kit.stepper2
 
@@ -82,8 +81,12 @@ class PlatformStepper:
 
         try:
             for i in range(step_count):
-                self.position = self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
+                self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
+                self.position = self.position + (1 if direction == 'cw' else -1)
                 time.sleep(step_sleep)
+            
+            with open(self.pos_file, "w") as f:
+                f.write(str(self.position))
 
         except KeyboardInterrupt:
             with open(self.pos_file, "w") as f:
@@ -93,8 +96,20 @@ class PlatformStepper:
 
     # Resets the position of the stepper motor back to the currently-defined zero position
     def reset_position(self):
-        if self.position != 0:
-            pass
+        if self.position > 0:
+            while self.position > 0:
+                self.step_channel.onestep(direction=stepper.BACKWARD, style=stepper.DOUBLE)
+                self.position = self.position - 1
+                time.sleep(0.01)
+        elif self.position < 0:
+            while self.position < 0:
+                self.step_channel.onestep(direction=stepper.FORWARD, style=stepper.DOUBLE)
+                self.position = self.position + 1
+                time.sleep(0.01)
+
+        with open(self.pos_file, "w") as f:
+            print(self.position)
+            f.write(str(self.position))
 
     # Sets the CURRENT position of the stepper motor as the new zero position--if you want to move
     # the motor's position back to the original position, call reset_position() instead!
@@ -108,12 +123,18 @@ def main():
 	# Define two functions to test out the motors simultaneously
     def test_motor_A():
         my_stepperA = PlatformStepper(0)
-        my_stepperA.zero_position()
-        my_stepperA.rotate('ccw', 100, 3)
+
+        # Reset once, return position
+        my_stepperA.reset_position()
+        print("Position after first reset:", my_stepperA.get_position())
         
-        print(my_stepperA.get_position())
+        my_stepperA.rotate('ccw', 1000, 5)
+        print("Position after 3 rotations:", my_stepperA.get_position())
         
-        my_stepperA.rotate('cw', 100, 3)
+        my_stepperA.reset_position()
+        print("Position after final reset:", my_stepperA.get_position())
+        
+        #my_stepperA.rotate('cw', 100, 3)
         #my_stepperA.rotate('cw', 100, HALF_TURN)
     
     def test_motor_B():
