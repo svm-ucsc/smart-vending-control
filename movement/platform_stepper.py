@@ -5,6 +5,13 @@ import time
 import board
 from adafruit_motor import stepper
 from adafruit_motorkit import MotorKit
+from pathlib import Path
+
+# Define filenames/locations for the stored positions of the stepper motors
+PLAT0_FILE = "channel0_pos.txt"
+PLAT0_LOC = Path(PLAT0_FILE)
+PLAT1_FILE = "channel1_pos.txt"
+PLAT1_LOC = Path(PLAT1_FILE)
 
 # Define macros for specific turns
 QUARTER_TURN = 0.25
@@ -15,26 +22,44 @@ FULL_TURN = 1.0
 DOUBLE_STEP = 200
 
 class PlatformStepper:
+    # Perform setup and check whether the position we are loading from is correct or not relative
+    # to the expected neutral position of the stepper motor
     def __init__(self, channel:int):
         self.kit = MotorKit(i2c=board.I2C())
         self.step_channel = None
+        self.position = None
+        self.pos_file = None
 
         # Determine stepper we are using on the given HAT?
         if (channel < 0) or (channel > 1):
-            print('Platform stepper channel  must be 0 or 1')
+            print('Platform stepper channel must be 0 or 1')
             exit(1)
         elif channel == 0:
             self.step_channel = self.kit.stepper1
+            self.pos_file = PLAT0_FILE
 
-            # Load position for stepper 1 from the file, check if it is 
+            # Check if the file for storing postition exists and initialize if not so
+            if not PLAT0_LOC.is_file():
+                PLAT0_LOC.touch(exist_ok=True)
+               
+                # Set stored position to 0
+                with open(self.pos_file, "w") as f:
+                    f.write("0")
+
+            # Load position for stepper 0 from the file
+            with open(self.pos_file, "r") as f:
+                self.position = int(f.read())
+
         else:
             self.step_channel = self.kit.stepper2
-
-            # Load position for stepper 2
 
     # Return the current motor channel for this stepper motor on the HAT
     def get_channel(self) -> int:
         return self.step_channel
+
+    # Return the current position of the stepper motor relative to the neutral position
+    def get_position(self) -> int:
+        return self.position
 
     # Rotate the motor either cw or ccw at a given speed for a specific amount of rotations
     #
@@ -57,37 +82,44 @@ class PlatformStepper:
 
         try:
             for i in range(step_count):
-                print(self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE))
+                self.position = self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 time.sleep(step_sleep)
 
         except KeyboardInterrupt:
+            print(self.position)
+            with open(self.pos_file, "w") as f:
+                f.write(str(self.position))
             exit(1)
 
 def main():
 	# Define two functions to test out the motors simultaneously
-	def test_motor_A():
-		my_stepperA = PlatformStepper(0)
-		my_stepperA.rotate('cw', 1000, 3)
-		my_stepperA.rotate('ccw', 100, 3)
-		#my_stepperA.rotate('cw', 100, HALF_TURN)
+    def test_motor_A():
+        my_stepperA = PlatformStepper(0)
+        my_stepperA.rotate('ccw', 100, 3)
+        
+        print(my_stepperA.get_position())
+        
+        my_stepperA.rotate('cw', 100, 3)
+        #my_stepperA.rotate('cw', 100, HALF_TURN)
+    
+    def test_motor_B():
+        my_stepperB = PlatformStepper(1)
+        my_stepperB.rotate('cw', 10000, 3)
+        my_stepperB.rotate('ccw', 500, 3)
+        my_stepperB.rotate('cw', 100, HALF_TURN)
 
-	def test_motor_B():
-		my_stepperB = PlatformStepper(1)
-		my_stepperB.rotate('cw', 10000, 3)
-		my_stepperB.rotate('ccw', 500, 3)
-		my_stepperB.rotate('cw', 100, HALF_TURN)
+    # Define two threds w/ each function listed above
+    #thread_A = threading.Thread(target=test_motor_A)
+    #thread_B = threading.Thread(target=test_motor_B)
 
-	# Define two threds w/ each function listed above
-	thread_A = threading.Thread(target=test_motor_A)
-	#thread_B = threading.Thread(target=test_motor_B)
-
-	# Launch the threads
-	try:
-		thread_A.start()
-		#thread_B.start()
-	except:
-		print("Unable to start a new thread.")
+    # Launch the threads
+    try:
+        test_motor_A()
+        #thread_A.start()
+        #thread_B.start()
+    except:
+        print("Unable to start a new thread.")
 
 if __name__ == '__main__':
-	main()
+    main()
 
