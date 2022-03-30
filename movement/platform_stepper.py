@@ -128,14 +128,25 @@ def main():
         my_stepperA.reset_position()
         print("Position after first reset:", my_stepperA.get_position())
         
-        my_stepperA.rotate('ccw', 1000, 5)
+        my_stepperA.rotate('cw', 1000, 5)
+        my_stepperA.rotate('ccw', 400, 2)
         print("Position after 3 rotations:", my_stepperA.get_position())
-        
+       
+        time.sleep(4)
+
         my_stepperA.reset_position()
-        print("Position after final reset:", my_stepperA.get_position())
+        print("Position after 2nd reset:", my_stepperA.get_position())
         
-        #my_stepperA.rotate('cw', 100, 3)
-        #my_stepperA.rotate('cw', 100, HALF_TURN)
+        my_stepperA.rotate('cw', 100, 1.5)
+        
+        # Define new zero position
+        my_stepperA.zero_position()
+
+        time.sleep(4)
+
+        my_stepperA.rotate('ccw', 400, 2.5)
+        my_stepperA.reset_position()
+        print("Position after 3rd reset:", my_stepperA.get_position())
     
     def test_motor_B():
         my_stepperB = PlatformStepper(1)
