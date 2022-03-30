@@ -9,19 +9,6 @@ import RPi.GPIO as GPIO
 import time
 from movement.lane_stepper import *
 
-CALIBRATOR_PINS = []  # GPIO pins for calibrator stepper motor
-CALIBRATOR_STEP_MODE = []  # step mode for calibrator stepper motor
-CALIBRATION_WEIGHT = 10  # known weight used for calibration (grams)
-
-class Calibrator(ItemLaneStepper):
-    """Stepper motor used specifically for calibration"""
-    def __init__(self, pinA, pinB, pinC, pinD, step_mode):
-        super().__init__(pinA, pinB, pinC, pinD, step_mode)
-
-    def move(self):
-        """Rotate motor to calibrate weight sesor"""
-        pass
-
 class WeightSensor_HX711:
 
     def __init__(self, dout, pd_sck, gain=128):
@@ -37,7 +24,6 @@ class WeightSensor_HX711:
 
         self.prev_read = 0         # Holds a previous read value for comparison
         self.base_weight = 0       # Offset in grams
-        self.calibrator = Calibrator()  # calibration stepper motor
 
         # Setup the gpio pin numbering system
         GPIO.setmode(GPIO.BCM)
@@ -84,13 +70,6 @@ class WeightSensor_HX711:
         :param offset: offset
         """
         self.OFFSET = offset
-
-    def set_base_weight(self, offset):
-        """
-        Set the base weight
-        :param offset: offset determined during calibration
-        """
-        self.base_weight = offset / self.SCALE
     
     def set_prev_read(self, weight):
         """
@@ -110,12 +89,6 @@ class WeightSensor_HX711:
         Returns value of offset
         """
         return self.OFFSET
-
-    def get_base_weight(self, base_weight):
-        """
-        Returns value of base weight
-        """
-        return self.base_weight
 
     def read(self):
         """
@@ -159,6 +132,7 @@ class WeightSensor_HX711:
         sum = 0
         for i in range(times):
             sum += self.read()
+        avg = sum / times
         return sum / times
     
     def detect_change(self, tolerance) -> bool:
@@ -192,19 +166,30 @@ class WeightSensor_HX711:
         grams = (value / self.SCALE)
         return grams
 
-    def calibrate(self, times=16):
+    def calibrate(self):
         """
         Tare functionality for calibration
         :param times: set value to calculate average
         """
-        # Get offset with no weight applied
-        offset = self.read_average(times)
+        print("Initializing.\n Please ensure that the platform is empty.")
+        scale_ready = False
+        while not scale_ready:
+            if (GPIO.input(self.DOUT) == 0):
+                scale_ready = False
+            if (GPIO.input(self.DOUT) == 1):
+                print("Initialization complete!")
+                scale_ready = True
+        readyCheck = input("Remove any items from platform. Press any key when ready.")
+        offset = self.read_average()
+        print("Value at zero (offset): {}".format(offset))
         self.set_offset(offset)
-        # Move calibrator to apply known weight
-        self.calibrator.move()
-        # compute scale
-        new_weight = self.read_average(times) - self.get_offset()
-        self.set_scale(new_weight/CALIBRATION_WEIGHT)
+        print("Please place an item of known weight on the scale.")
+        item_weight = input("Please enter the item's weight in grams.\n>")
+        measured_weight = (self.read_average()-self.get_offset())
+        scale = int(measured_weight)/int(item_weight)
+        self.set_scale(scale)
+        print("Scale adjusted for grams: {}".format(scale))
+
 
     def power_down(self):
         """
@@ -218,16 +203,3 @@ class WeightSensor_HX711:
         Power the chip up
         """
         GPIO.output(self.PD_SCK, False)
-
-# A test script to play with the sensor functionality
-def main():
-  my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
-  my_sensor.calibrate()
-   
-  while(True):
-      my_sensor.detect_change(tolerance=0)
-      print(my_sensor.prev_read)
-      time.sleep(5)
-
-if __name__ == '__main__':
-    main()
