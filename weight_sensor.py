@@ -23,7 +23,6 @@ class WeightSensor_HX711:
         self.SCALE = 1
 
         self.prev_read = 0         # Holds a previous read value for comparison
-        self.base_weight = 0       # Offset in grams
 
         # Setup the gpio pin numbering system
         GPIO.setmode(GPIO.BCM)
@@ -132,7 +131,6 @@ class WeightSensor_HX711:
         sum = 0
         for i in range(times):
             sum += self.read()
-        avg = sum / times
         return sum / times
     
     def detect_change(self, tolerance) -> bool:
@@ -150,10 +148,10 @@ class WeightSensor_HX711:
     
     def difference(self):
         """
-        Returns difference between current weight and base weight
+        Returns difference between current weight and offset
         """
         current = self.get_grams()
-        return current - self.get_base_weight()
+        return current - self.get_offset()
 
     def get_grams(self, times=16):
         """
