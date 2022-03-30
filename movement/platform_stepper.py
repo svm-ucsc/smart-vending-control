@@ -88,7 +88,7 @@ class PlatformStepper:
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
 
@@ -144,13 +144,13 @@ def main():
         my_stepperB.rotate('cw', 100, HALF_TURN)
 
     # Define two threds w/ each function listed above
-    #thread_A = threading.Thread(target=test_motor_A)
+    thread_A = threading.Thread(target=test_motor_A)
     #thread_B = threading.Thread(target=test_motor_B)
 
     # Launch the threads
     try:
-        test_motor_A()
-        #thread_A.start()
+        #test_motor_A()
+        thread_A.start()
         #thread_B.start()
     except:
         print("Unable to start a new thread.")
