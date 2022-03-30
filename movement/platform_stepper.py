@@ -144,13 +144,13 @@ def main():
         my_stepperB.rotate('cw', 100, HALF_TURN)
 
     # Define two threds w/ each function listed above
-    thread_A = threading.Thread(target=test_motor_A)
+    #thread_A = threading.Thread(target=test_motor_A)
     #thread_B = threading.Thread(target=test_motor_B)
 
     # Launch the threads
     try:
-        #test_motor_A()
-        thread_A.start()
+        test_motor_A()
+        #thread_A.start()
         #thread_B.start()
     except:
         print("Unable to start a new thread.")
