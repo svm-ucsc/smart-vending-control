@@ -9,7 +9,11 @@
 // pin for the MCP w/ address 0x20 is 100, for 0x21 is 200, etc.)
 #define BASE0 (100)
 #define BASE1 (200)
-#define BASE2 (300)
+
+// Number of extra pins brought on by MCP23017
+#define PINS_PER_MCP (16)
+
+#define MAX_WORKERS (3)
 
 using namespace std;
 
@@ -45,27 +49,21 @@ int main(void) {
     // Initialize the three MCPs for each of the addresses defined
     mcp23017Setup(BASE0, 0x20);
     mcp23017Setup(BASE1, 0x21);
-    mcp23017Setup(BASE2, 0x22);
 
-    for(int i = 0; i < 8; i++) {
+    for(int i = 0; i < PINS_PER_MCP; i++) {
         pinMode(BASE0 + i, OUTPUT);
         pinMode(BASE1 + i, OUTPUT);
-        pinMode(BASE2 + i, OUTPUT);
     }
 
-    thread workers[3];
-
-    /*
-    for(int i = 0; i < 3; i++) {
-        workers[i] = thread(runMotor, (i + 1) * 100);
-    }
-    */
+    thread workers[MAX_WORKERS];
+    
+    // Launch a thread for each one of the motors we want to run together
     workers[0] = thread(runMotor, BASE0);
     workers[1] = thread(runMotor, BASE0 + 4);
-    workers[2] = thread(runMotor, BASE2);
+    workers[2] = thread(runMotor, BASE0 + 8);
 
-    for(int i = 0; i < 3; i++) {
+    // Wait for all threads to finish
+    for(int i = 0; i < MAX_WORKERS; i++) {
         workers[i].join();
     }
-
 }
