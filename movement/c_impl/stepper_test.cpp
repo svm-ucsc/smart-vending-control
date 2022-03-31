@@ -32,6 +32,10 @@ void runMotor(int basePin) {
         
         delay(1);
     }
+
+    for(int i = 0; i < 4; i++) {
+        digitalWrite(basePin + i, 0);
+    }
 }
 
 int main(void) {
@@ -43,7 +47,7 @@ int main(void) {
     mcp23017Setup(BASE1, 0x21);
     mcp23017Setup(BASE2, 0x22);
 
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < 8; i++) {
         pinMode(BASE0 + i, OUTPUT);
         pinMode(BASE1 + i, OUTPUT);
         pinMode(BASE2 + i, OUTPUT);
@@ -51,9 +55,14 @@ int main(void) {
 
     thread workers[3];
 
+    /*
     for(int i = 0; i < 3; i++) {
         workers[i] = thread(runMotor, (i + 1) * 100);
     }
+    */
+    workers[0] = thread(runMotor, BASE0);
+    workers[1] = thread(runMotor, BASE0 + 4);
+    workers[2] = thread(runMotor, BASE2);
 
     for(int i = 0; i < 3; i++) {
         workers[i].join();
