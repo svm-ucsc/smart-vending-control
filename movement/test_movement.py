@@ -17,6 +17,8 @@ def main():
 	plat_0.rotate('cw', 1000, 5)
 
 	lane_0.rotate('cw', 20000, 1)
+	lane_1.rotate('cw', 20000, 1)
+	lane_2.rotate('cw', 20000, 1)
 
 	plat_0.rotate('ccw', 1000, 5)
 
