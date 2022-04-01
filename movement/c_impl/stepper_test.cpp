@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <thread>
 
+// NOTE: wiringPi.h had to be installed from the last supported version, mcp23017 is included in Pi
 #include <mcp23017.h>
 #include <wiringPi.h>
 
