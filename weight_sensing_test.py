@@ -1,6 +1,6 @@
 from weight_sensor import *
 
-TOL = 0 minimum squared difference for change to be registered
+TOL = 0 #minimum squared difference for change to be registered
 
 my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
 my_sensor.calibrate()
