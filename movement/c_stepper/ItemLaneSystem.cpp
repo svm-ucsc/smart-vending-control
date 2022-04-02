@@ -20,8 +20,8 @@
 #define MCP0_ADDR       (0x20)
 #define MCP1_ADDR       (0x21)
 
-#define PIN_BASE_0      (100)
-#define PIN_BASE_1      (200)
+#define PIN_BASE0      (100)
+#define PIN_BASE1      (200)
 
 // Pin, step sequence, and multithreading constants
 #define PINS_PER_MCP    (16)
@@ -40,20 +40,20 @@
 using namespace std;
 
 // Sequence of steps for full steps on a stepper motor (more granular)
-static const uint32_t FULL_SEQUENCE[FULL_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 1},
-                                                                       {1, 0, 0, 0},
-                                                                       {1, 1, 0, 0},
-                                                                       {0, 1, 0, 0},
-                                                                       {0, 1, 1, 0},
-                                                                       {0, 0, 1, 0},
-                                                                       {0, 0, 1, 1},
-                                                                       {0, 0, 0, 1} };
+static const int FULL_SEQUENCE[FULL_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 1},
+                                                                  {1, 0, 0, 0},
+                                                                  {1, 1, 0, 0},
+                                                                  {0, 1, 0, 0},
+                                                                  {0, 1, 1, 0},
+                                                                  {0, 0, 1, 0},
+                                                                  {0, 0, 1, 1},
+                                                                  {0, 0, 0, 1} };
 
 // Sequence of steps for half steps on a stepper motor (less granular)
-static const uint32_t HALF_SEQUENCE[HALF_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 0},
-                                                                       {1, 1, 0, 0},
-                                                                       {0, 1, 1, 0},
-                                                                       {0, 0, 1, 1} };
+static const int HALF_SEQUENCE[HALF_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 0},
+                                                                  {1, 1, 0, 0},
+                                                                  {0, 1, 1, 0},
+                                                                  {0, 0, 1, 1} };
 
 // ItemLaneStepper class designed to control a any stepper motor in an item lane
 class ItemLaneSystem {
@@ -70,14 +70,14 @@ public:
 
         // Set all of the relevant pins to output mode
         for(int i = 0; i < PINS_PER_MCP; i++) {
-            pinMode(BASE0 + i, OUTPUT);
-            pinMode(BASE1 + i, OUTPUT);
+            pinMode(PIN_BASE0 + i, OUTPUT);
+            pinMode(PIN_BASE1 + i, OUTPUT);
         }
 
         // Set the step sequence for this system to follow (do we want this to be made for a
         // motor-by-motor basis?)
         this->step_sequence = (full_step ? FULL_SEQUENCE : HALF_SEQUENCE);
-        this->steps = (full_step ? FULL_STEP_LEN : HALF_STEP_LEN);
+        this->seq_len = (full_step ? FULL_STEP_LEN : HALF_STEP_LEN);
     }
 
     // Rotate one motor either cw or ccw at a given speed for a specific amount of rotations
@@ -87,36 +87,30 @@ public:
     // - direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
     // - speed: used to determine how quickly each step takes--bounded between [0, 1.00]
     // - rotations: number of rotations to undertake
-    void rotate(uint32_t channel, string direction, float speed, float rotations) {
-        uint32_t base_pin = this->channel_to_base(channel);     // Convert digit channel to base pin addr.
-        uint32_t step_sleep = this->speed_to_delay(speed);      // Convert speed to step sleep amount (ms)
-        uint32_t step_count = int(rotations * STEPS_PER_ROT)    // Convert rotations to number of steps
+    void rotate(int channel, string direction, float speed, float rotations) {
+        int base_pin = this->channel_to_base(channel);     // Convert digit channel to base pin addr.
+        int step_sleep = this->speed_to_delay(speed);      // Convert speed to step sleep amount (ms)
+        int step_count = int(rotations * STEPS_PER_ROT);   // Convert rotations to number of steps
 
         // Set rotation direction
         int dir = -1;
-        switch(direction) {
-            case (direction == "cw"):
-                dir = 0;
-                break;
-            case (direction == "ccw"):
-                dir = 1;
-                break;
-            default:
-                cout << "Invalid direction chosen, staying idle..." << endl;
-                return;
-        }
 
-        // Set up bounds for the rotation steps loop
-        int start = 0;
-        int end = this->steps;
+        if (direction == "cw") {
+            dir = 0;
+        } else if (direction == "ccw") {
+            dir = 1;
+        } else {
+            cout << "Invalid direction chosen, staying idle..." << endl;
+            return;
+        }
 
         for(int j = 0; j < step_count; j++) {
             // Change the index of the step we want depending on the direction
-            int cur_step = (dir ? this->steps - j - 1: j);
+            int cur_step = (dir ? step_count - j - 1 : j);
 
             // Inner loop runs through the pins in order to determine which value is placed per pin
             for(int i = 0; i < PINS_PER_MOTOR; i++) {
-                digitalWrite(base_pin + i, this->step_sequence[j % FULL_STEP_LEN][i]
+                digitalWrite(base_pin + i, this->step_sequence[cur_step % this->seq_len][i]);
             }
 
             delay(step_sleep);
@@ -138,18 +132,22 @@ public:
 
 private:
     thread workers[MAX_WORKERS];        // Private threads for use in running simultaneous motors
-    int steps;
-    uint32_t *step_sequence;            // Pointer to array for the full or half-step sequence
+    const int *step_sequence;           // Pointer to array for the full or half-step sequence
+    int seq_len;                        // How many steps in the sequence chosen
 
     // Maps sequential, positive integer channels to the appropriate base pin address for the motor
     // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 112, 4 to 200, 5 to 204, etc.)
-    uint32_t channel_to_base(uint32_t channel) {
+    int channel_to_base(int channel) {
        return PIN_BASE0 + (PIN_BASE0 * ((int) (channel / PINS_PER_MOTOR))) +
                 ((channel % PINS_PER_MOTOR) * PINS_PER_MOTOR);
     }
 
     // Converts speed into delay amount for the purposes of rotation
-    uint32_t speed_to_delay(float speed) {
-        return uint32_t(MIN_DELAY + MAX_DELAY * (1 - speed))
+    int speed_to_delay(float speed) {
+        return int(MIN_DELAY + MAX_DELAY * (1 - speed));
     }
 };
+
+int main() {
+    cout << "hi" << endl;
+}
