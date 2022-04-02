@@ -20,8 +20,8 @@
 #define MCP0_ADDR       (0x20)
 #define MCP1_ADDR       (0x21)
 
-#define PIN_BASE0      (100)
-#define PIN_BASE1      (200)
+#define PIN_BASE0       (100)
+#define PIN_BASE1       (200)
 
 // Pin, step sequence, and multithreading constants
 #define PINS_PER_MCP    (16)
@@ -131,9 +131,13 @@ public:
     }
 
 private:
-    thread workers[MAX_WORKERS];        // Private threads for use in running simultaneous motors
-    const int *step_sequence;           // Pointer to array for the full or half-step sequence
-    int seq_len;                        // How many steps in the sequence chosen
+    thread workers[MAX_WORKERS];                // Private threads for use in running simultaneous motors
+    
+    // FIX ME!
+    int step_sequence[][PINS_PER_MOTOR];        // Pointer to array for the full or half-step sequence
+    
+
+    int seq_len;                                // How many steps in the sequence chosen
 
     // Maps sequential, positive integer channels to the appropriate base pin address for the motor
     // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 112, 4 to 200, 5 to 204, etc.)
