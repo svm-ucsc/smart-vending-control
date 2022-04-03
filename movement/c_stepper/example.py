@@ -2,7 +2,13 @@ import build.ItemLaneSystem as ils
 
 sys = ils.ItemLaneSystem()
 
+# Example call to rotate_n where we specify a list of channels, directions, speeds, and rotations
+# for each of the motors described to follow
+print("Rotating 2 (ch 0/1) together with rotate_n")
 sys.rotate_n([0, 1], ["cw", "ccw"], [1.0, 1.0], [1.0, 1.0])
+
+print("Rotating 3 (ch 3/4/5) together with rotate_n")
+sys.rotate_n([3, 4, 5], ["cw", "cw", "cw"], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0])
 
 # Example call to rotate_pair by manually inserting the arguments (which gets long pretty quickly)
 # sys.rotate_pair(0, "cw", 1.0, 1.0, 1, "ccw", 1.0, 1.0)

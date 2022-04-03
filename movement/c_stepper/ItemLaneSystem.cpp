@@ -72,9 +72,9 @@ public:
     // Rotate one motor either cw or ccw at a given speed for a specific amount of rotations
     //
     // Parameters:
-    // - channel: motor to move in the system--maps 0 through 5 to the appropriate base pin for a motor
+    // - channel:   motor to move in the system--maps 0 through 5 to the appropriate base pin for a motor
     // - direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
-    // - speed: used to determine how quickly each step takes--bounded between [0, 1.00]
+    // - speed:     used to determine how quickly each step takes--bounded between [0, 1.00]
     // - rotations: number of rotations to undertake
     void rotate(int channel, string direction, float speed, float rotations) {
         int base_pin = this->channel_to_base(channel);     // Convert digit channel to base pin addr.
@@ -112,6 +112,12 @@ public:
     }
 
     // Explicitly rotate a pair of stepper motors together with different parameters
+    //
+    // Parameters:
+    // - ch*:   Numbered channel of the stepper motor to run
+    // - dir*:  Direction the corresponding motor will turn
+    // - spd*:  Speed of the corresponding motor (bounded between 0.0 and 1.0)
+    // - rot*:  # of rotations the corresponding motor should take
     void rotate_pair(int ch0, string dir0, float spd0, float rot0,
                      int ch1, string dir1, float spd1, float rot1) {
         // To use multithreading within a class function, specify the signature and "this"
@@ -125,6 +131,12 @@ public:
     // Explicitly rotate a trio of stepper motors together with different parameters--
     // we may refactor the signature of this function such that we generalize to n
     // motors being run, but this method works for now
+    //
+    // Parameters:
+    // - ch*:   Numbered channel of the stepper motor to run
+    // - dir*:  Direction the corresponding motor will turn
+    // - spd*:  Speed of the corresponding motor (bounded between 0.0 and 1.0)
+    // - rot*:  # of rotations the corresponding motor should take
     void rotate_trio(int ch0, string dir0, float spd0, float rot0,
                      int ch1, string dir1, float spd1, float rot1,
                      int ch2, string dir2, float spd2, float rot2) {
@@ -139,6 +151,12 @@ public:
 
     // Rotate a number of stepper motors using arrays sent in to each of the arguments with
     // corresponding entries belonging to different channels (up to MAX_WORKERS amount)
+    //
+    // Parameters:
+    // - channels:   Vector of numbered channels of motors to run
+    // - directions: Vector of directions the corresponding motors will turn
+    // - speeds:     Vector of speeds for the corresponding motor (bounded between 0.0 and 1.0)
+    // - rotations:  Vector of the # of rotations the corresponding motors should take
     void rotate_n(vector<int> channels, vector<string> directions, vector<float> speeds, vector<float> rotations) {
         size_t num_chans = channels.size();
 
