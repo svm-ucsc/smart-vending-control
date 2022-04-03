@@ -107,7 +107,10 @@ public:
         }
     }
 
-    void rotate_pair(int ch0, string dir0, float spd0, float rot0, int ch1, string dir1, float spd1, float rot1) {
+    // Explicitly rotate a pair of stepper motors together
+    void rotate_pair(int ch0, string dir0, float spd0, float rot0,
+                     int ch1, string dir1, float spd1, float rot1) {
+        // To use multithreading within a class function, specify the signature and "this"
         workers[0] = thread(&ItemLaneSystem::rotate, this, ch0, dir0, spd0, rot0);
         workers[1] = thread(&ItemLaneSystem::rotate, this, ch1, dir1, spd1, rot1);
 
@@ -141,9 +144,13 @@ private:
 
 int main() {
     ItemLaneSystem sys = ItemLaneSystem();
-    sys.rotate(0, "cw", 1.0, 1.0);
-    sys.rotate(0, "ccw", 1.0, 1.0);
+
+    for(int i = 0; i < 6; i++) {
+        cout << "Running motor " << i << "..." << endl;
+        sys.rotate(i, "cw", 1.0, 0.5);
+    }
 
     sys.rotate_pair(1, "cw", 1.0, 1.0, 2, "cw", 1.0, 1.0);
-
+    sys.rotate_pair(3, "ccw", 1.0, 1.0, 4, "ccw", 1.0, 1.0);
+    sys.rotate(5, "cw", 1.0, 1.0);
 }
