@@ -12,11 +12,13 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <mcp23017.h>
 #include <wiringPi.h>
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 // Address constants
 #define MCP0_ADDR       (0x20)
@@ -109,7 +111,7 @@ public:
         }
     }
 
-    // Explicitly rotate a pair of stepper motors together
+    // Explicitly rotate a pair of stepper motors together with different parameters
     void rotate_pair(int ch0, string dir0, float spd0, float rot0,
                      int ch1, string dir1, float spd1, float rot1) {
         // To use multithreading within a class function, specify the signature and "this"
@@ -120,6 +122,41 @@ public:
         workers[1].join();
     }
 
+    // Explicitly rotate a trio of stepper motors together with different parameters--
+    // we may refactor the signature of this function such that we generalize to n
+    // motors being run, but this method works for now
+    void rotate_trio(int ch0, string dir0, float spd0, float rot0,
+                     int ch1, string dir1, float spd1, float rot1,
+                     int ch2, string dir2, float spd2, float rot2) {
+        workers[0] = thread(&ItemLaneSystem::rotate, this, ch0, dir0, spd0, rot0);
+        workers[1] = thread(&ItemLaneSystem::rotate, this, ch1, dir1, spd1, rot1);
+        workers[2] = thread(&ItemLaneSystem::rotate, this, ch2, dir2, spd2, rot2);
+
+        for(int i = 0; i < MAX_WORKERS; i++) {
+            workers[i].join();
+        }
+    }
+
+    // Rotate a number of stepper motors using arrays sent in to each of the arguments with
+    // corresponding entries belonging to different channels (up to MAX_WORKERS amount)
+    void rotate_n(vector<int> channels, vector<string> directions, vector<float> speeds, vector<float> rotations) {
+        size_t num_chans = channels.size();
+
+        if((num_chans != directions.size()) && (num_chans != speeds.size()) && (num_chans != rotations.size())) {
+            cout << "Mismatched lengths of lists for channels, directions, speeds, and rotations, staying idle..." << endl;
+            return;
+        }
+
+        for(int i = 0; i < num_chans; i++) {
+            workers[i] = thread(&ItemLaneSystem::rotate, this, channels[i], directions[i],
+                                                              speeds[i], rotations[i]);
+        }
+
+        for(int i = 0; i < num_chans; i++) {
+            workers[i].join();
+        }
+    }
+ 
     // Set all of the pins on all expansion boards connecting to the motors to digital low
     void zero_all_pins() {
         for(int i = 0; i < PINS_PER_MCP; i++) {
@@ -129,7 +166,7 @@ public:
     }
 
 private:
-    thread workers[MAX_WORKERS];                // Private threads for use in running simultaneous motors
+    thread workers[MAX_WORKERS];           // Private threads for use in running simultaneous motors
 
     // Maps sequential, positive integer channels to the appropriate base pin address for the motor
     // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 112, 4 to 200, 5 to 204, etc.)
@@ -149,9 +186,12 @@ PYBIND11_MODULE(ItemLaneSystem, m) {
         .def(pybind11::init<>())
         .def("rotate", &ItemLaneSystem::rotate)
         .def("rotate_pair", &ItemLaneSystem::rotate_pair)
+        .def("rotate_trio", &ItemLaneSystem::rotate_trio)
+        .def("rotate_n", &ItemLaneSystem::rotate_n)
         .def("zero_all_pins", &ItemLaneSystem::zero_all_pins);
 }
 
+// Test execution to see that motors can work independently and together
 int main() {
     ItemLaneSystem sys = ItemLaneSystem();
 
