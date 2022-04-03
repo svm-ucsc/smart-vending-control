@@ -107,6 +107,14 @@ public:
         }
     }
 
+    void rotate_pair(int ch0, string dir0, float spd0, float rot0, int ch1, string dir1, float spd1, float rot1) {
+        workers[0] = thread(&ItemLaneSystem::rotate, this, ch0, dir0, spd0, rot0);
+        workers[1] = thread(&ItemLaneSystem::rotate, this, ch1, dir1, spd1, rot1);
+
+        workers[0].join();
+        workers[1].join();
+    }
+
     // Set all of the pins on all expansion boards connecting to the motors to digital low
     void zero_all_pins() {
         for(int i = 0; i < PINS_PER_MCP; i++) {
@@ -135,4 +143,7 @@ int main() {
     ItemLaneSystem sys = ItemLaneSystem();
     sys.rotate(0, "cw", 1.0, 1.0);
     sys.rotate(0, "ccw", 1.0, 1.0);
+
+    sys.rotate_pair(1, "cw", 1.0, 1.0, 2, "cw", 1.0, 1.0);
+
 }
