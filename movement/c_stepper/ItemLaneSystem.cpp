@@ -150,7 +150,12 @@ int main() {
         sys.rotate(i, "cw", 1.0, 0.5);
     }
 
+    cout << "Running motors 1 and 2 together..." << endl;
     sys.rotate_pair(1, "cw", 1.0, 1.0, 2, "cw", 1.0, 1.0);
+    
+    cout << "Running motors 3 and 4 together..." << endl;
     sys.rotate_pair(3, "ccw", 1.0, 1.0, 4, "ccw", 1.0, 1.0);
-    sys.rotate(5, "cw", 1.0, 1.0);
+    
+    cout << "Running motors 0 (twice cw) and 5 (once ccw) together..." << endl;
+    sys.rotate_pair(0, "cw", 1.0, 2.0, 5, "ccw", 1.0, 1.0);
 }
