@@ -16,6 +16,8 @@
 #include <mcp23017.h>
 #include <wiringPi.h>
 
+#include <pybind11/pybind11.h>
+
 // Address constants
 #define MCP0_ADDR       (0x20)
 #define MCP1_ADDR       (0x21)
@@ -141,6 +143,14 @@ private:
         return int(MIN_DELAY + MAX_DELAY * (1 - speed));
     }
 };
+
+PYBIND11_MODULE(ItemLaneSystem, m) {
+    pybind11::class_<ItemLaneSystem>(m, "ItemLaneSystem")
+        .def(pybind11::init<>())
+        .def("rotate", &ItemLaneSystem::rotate)
+        .def("rotate_pair", &ItemLaneSystem::rotate_pair)
+        .def("zero_all_pins", &ItemLaneSystem::zero_all_pins);
+}
 
 int main() {
     ItemLaneSystem sys = ItemLaneSystem();
