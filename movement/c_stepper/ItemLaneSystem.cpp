@@ -28,7 +28,6 @@
 #define PINS_PER_MOTOR  (4)
 
 #define FULL_STEP_LEN   (8)
-#define HALF_STEP_LEN   (4)
 
 #define MAX_WORKERS     (3)
 
@@ -49,20 +48,11 @@ static const int FULL_SEQUENCE[FULL_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 1},
                                                                   {0, 0, 1, 1},
                                                                   {0, 0, 0, 1} };
 
-// Sequence of steps for half steps on a stepper motor (less granular)
-static const int HALF_SEQUENCE[HALF_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 0},
-                                                                  {1, 1, 0, 0},
-                                                                  {0, 1, 1, 0},
-                                                                  {0, 0, 1, 1} };
-
 // ItemLaneStepper class designed to control a any stepper motor in an item lane
 class ItemLaneSystem {
 public:
     // Constructor that initializes all of the needed details for the item lanes
-    //
-    // Parameters:
-    // - step_mode: true for full-step (default), false for half-step
-    ItemLaneSystem(bool full_step = true) {
+    ItemLaneSystem() {
         // Prepare the iface for the GPIO pins coming out of the Pi w/ the MCP23017 expander boards
         wiringPiSetup();
         mcp23017Setup(PIN_BASE0, MCP0_ADDR);
@@ -73,11 +63,6 @@ public:
             pinMode(PIN_BASE0 + i, OUTPUT);
             pinMode(PIN_BASE1 + i, OUTPUT);
         }
-
-        // Set the step sequence for this system to follow (do we want this to be made for a
-        // motor-by-motor basis?)
-        this->step_sequence = (full_step ? FULL_SEQUENCE : HALF_SEQUENCE);
-        this->seq_len = (full_step ? FULL_STEP_LEN : HALF_STEP_LEN);
     }
 
     // Rotate one motor either cw or ccw at a given speed for a specific amount of rotations
@@ -110,7 +95,7 @@ public:
 
             // Inner loop runs through the pins in order to determine which value is placed per pin
             for(int i = 0; i < PINS_PER_MOTOR; i++) {
-                digitalWrite(base_pin + i, this->step_sequence[cur_step % this->seq_len][i]);
+                digitalWrite(base_pin + i, FULL_SEQUENCE[cur_step % FULL_STEP_LEN][i]);
             }
 
             delay(step_sleep);
@@ -132,12 +117,6 @@ public:
 
 private:
     thread workers[MAX_WORKERS];                // Private threads for use in running simultaneous motors
-    
-    // FIX ME!
-    int step_sequence[][PINS_PER_MOTOR];        // Pointer to array for the full or half-step sequence
-    
-
-    int seq_len;                                // How many steps in the sequence chosen
 
     // Maps sequential, positive integer channels to the appropriate base pin address for the motor
     // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 112, 4 to 200, 5 to 204, etc.)
@@ -153,5 +132,7 @@ private:
 };
 
 int main() {
-    cout << "hi" << endl;
+    ItemLaneSystem sys = ItemLaneSystem();
+    sys.rotate(0, "cw", 1.0, 1.0);
+    sys.rotate(0, "ccw", 1.0, 1.0);
 }
