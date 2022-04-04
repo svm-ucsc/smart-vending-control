@@ -29,28 +29,28 @@ class PlatformStepper:
         self.step_channel = None
         self.position = None
         self.pos_file = None
+        self.pos_loc = None
 
         # Determine stepper we are using on the given HAT?
         if (channel < 0) or (channel > 1):
             print('Platform stepper channel must be 0 or 1')
             exit(1)
-        elif channel == 0:
-            self.step_channel = self.kit.stepper1
-            self.pos_file = PLAT0_FILE
+        
+        self.step_channel = self.kit.stepper1 if channel == 0 else self.kit.stepper2
+        self.pos_file = PLAT0_FILE if channel == 0 else PLAT1_FILE
+        self.pos_loc = PLAT0_LOC if channel == 0 else PLAT1_LOC
 
-            # Check if the file for storing postition exists and initialize if not so
-            if not PLAT0_LOC.is_file():
-                PLAT0_LOC.touch(exist_ok=True)
-               
-                # Set stored position to 0
-                with open(self.pos_file, "w") as f:
-                    f.write("0")
+        # Check if the file for storing postition exists and initialize if not so
+        if not self.pos_loc.is_file():
+            self.pos_loc.touch(exist_ok=True)
+              
+            # Set stored position to 0
+            with open(self.pos_file, "w") as f:
+                f.write("0")
 
-            # Load position for stepper 0 from the file
-            with open(self.pos_file, "r") as f:
-                self.position = int(f.read())
-        else:
-            self.step_channel = self.kit.stepper2
+        # Load position for stepper 0 from the file
+        with open(self.pos_file, "r") as f:
+            self.position = int(f.read())
 
     # Return the current motor channel for this stepper motor on the HAT
     def get_channel(self) -> int:
