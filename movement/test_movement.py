@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import c_stepper.build.ItemLaneSystem as ls
+import lane_stepper.build.ItemLaneSystem as ls
 import platform_stepper as ps
 
 
@@ -32,7 +32,7 @@ def main():
 	plat_0.rotate('ccw', 1000, 3)
 
 	try:
-		sys.rotate_n([0, 1, 2], ['cw', 'cw', 'cw'], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
+		sys.rotate_n([3, 4, 5], ['cw', 'cw', 'cw'], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
 	except:
 		print("Unable to rotate")
 
