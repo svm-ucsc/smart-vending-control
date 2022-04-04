@@ -111,44 +111,6 @@ public:
         }
     }
 
-    // Explicitly rotate a pair of stepper motors together with different parameters
-    //
-    // Parameters:
-    // - ch*:   Numbered channel of the stepper motor to run
-    // - dir*:  Direction the corresponding motor will turn
-    // - spd*:  Speed of the corresponding motor (bounded between 0.0 and 1.0)
-    // - rot*:  # of rotations the corresponding motor should take
-    void rotate_pair(int ch0, string dir0, float spd0, float rot0,
-                     int ch1, string dir1, float spd1, float rot1) {
-        // To use multithreading within a class function, specify the signature and "this"
-        workers[0] = thread(&ItemLaneSystem::rotate, this, ch0, dir0, spd0, rot0);
-        workers[1] = thread(&ItemLaneSystem::rotate, this, ch1, dir1, spd1, rot1);
-
-        workers[0].join();
-        workers[1].join();
-    }
-
-    // Explicitly rotate a trio of stepper motors together with different parameters--
-    // we may refactor the signature of this function such that we generalize to n
-    // motors being run, but this method works for now
-    //
-    // Parameters:
-    // - ch*:   Numbered channel of the stepper motor to run
-    // - dir*:  Direction the corresponding motor will turn
-    // - spd*:  Speed of the corresponding motor (bounded between 0.0 and 1.0)
-    // - rot*:  # of rotations the corresponding motor should take
-    void rotate_trio(int ch0, string dir0, float spd0, float rot0,
-                     int ch1, string dir1, float spd1, float rot1,
-                     int ch2, string dir2, float spd2, float rot2) {
-        workers[0] = thread(&ItemLaneSystem::rotate, this, ch0, dir0, spd0, rot0);
-        workers[1] = thread(&ItemLaneSystem::rotate, this, ch1, dir1, spd1, rot1);
-        workers[2] = thread(&ItemLaneSystem::rotate, this, ch2, dir2, spd2, rot2);
-
-        for(int i = 0; i < MAX_WORKERS; i++) {
-            workers[i].join();
-        }
-    }
-
     // Rotate a number of stepper motors using arrays sent in to each of the arguments with
     // corresponding entries belonging to different channels (up to MAX_WORKERS amount)
     //
@@ -203,8 +165,6 @@ PYBIND11_MODULE(ItemLaneSystem, m) {
     pybind11::class_<ItemLaneSystem>(m, "ItemLaneSystem")
         .def(pybind11::init<>())
         .def("rotate", &ItemLaneSystem::rotate)
-        .def("rotate_pair", &ItemLaneSystem::rotate_pair)
-        .def("rotate_trio", &ItemLaneSystem::rotate_trio)
         .def("rotate_n", &ItemLaneSystem::rotate_n)
         .def("zero_all_pins", &ItemLaneSystem::zero_all_pins);
 }
@@ -218,12 +178,20 @@ int main() {
         sys.rotate(i, "cw", 1.0, 0.5);
     }
 
+    vector<int> channels = {1, 3, 0};
+    vector<string> directions = {"cw", "ccw", "cw"};
+    vector<float> speeds = {1.0, 1.0, 2.0};
+    vector<float> rotations = {1.0, 1.0, 1.0};
+
+    cout << "Running motors 0, 1, and 3 together..." << endl;
+    sys.rotate_n(channels, directions, speeds, rotations);
+
     cout << "Running motors 1 and 2 together..." << endl;
-    sys.rotate_pair(1, "cw", 1.0, 1.0, 2, "cw", 1.0, 1.0);
+    sys.rotate_n({1, 2}, {"cw", "cw"}, {1.0, 1.0}, {2.0, 1.0});
     
     cout << "Running motors 3 and 4 together..." << endl;
-    sys.rotate_pair(3, "ccw", 1.0, 1.0, 4, "ccw", 1.0, 1.0);
+    sys.rotate_n({3, 4}, {"ccw", "ccw"}, {1.0, 1.0}, {1.0, 1.0});
     
     cout << "Running motors 0 (twice cw) and 5 (once ccw) together..." << endl;
-    sys.rotate_pair(0, "cw", 1.0, 2.0, 5, "ccw", 1.0, 1.0);
+    sys.rotate_n({0, 5}, {"cw", "ccw"}, {1.0, 1.0}, {2.0, 1.0});
 }

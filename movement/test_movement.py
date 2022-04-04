@@ -10,6 +10,10 @@ def main():
 	sys = ls.ItemLaneSystem()
 
 
+	print("ERROR TEST STARTING (nothing should run at this point!)")
+	sys.rotate_n([1, 5], ['cw'], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
+	print("ERROR TEST ENDING")
+
 	print("SEQUENTIAL TEST STARTING")
 
 	# Example of moving the platform to the location of an item, dispensing, then coming back down
