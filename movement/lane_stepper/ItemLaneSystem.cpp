@@ -137,7 +137,8 @@ public:
         }
     }
  
-    // Set all of the pins on all expansion boards connecting to the motors to digital low
+    // Set all of the pins on all expansion boards connecting to the motors to digital low--this
+    // is recommended to run once a rotation is complete to avoid stray power draw
     void zero_all_pins() {
         for(int i = 0; i < PINS_PER_MCP; i++) {
             digitalWrite(PIN_BASE0 + i, 0);
