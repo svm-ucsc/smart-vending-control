@@ -7,6 +7,7 @@
 
 import RPi.GPIO as GPIO
 import time
+from movement.lane_stepper import *
 
 class WeightSensor_HX711:
 
@@ -22,7 +23,6 @@ class WeightSensor_HX711:
         self.SCALE = 1
 
         self.prev_read = 0         # Holds a previous read value for comparison
-        self.base_weight = 0       # Offset in grams
 
         # Setup the gpio pin numbering system
         GPIO.setmode(GPIO.BCM)
@@ -69,13 +69,6 @@ class WeightSensor_HX711:
         :param offset: offset
         """
         self.OFFSET = offset
-
-    def set_base_weight(self, offset):
-        """
-        Set the base weight
-        :param offset: offset determined during calibration
-        """
-        self.base_weight = offset / self.SCALE
     
     def set_prev_read(self, weight):
         """
@@ -95,12 +88,6 @@ class WeightSensor_HX711:
         Returns value of offset
         """
         return self.OFFSET
-
-    def get_base_weight(self, base_weight):
-        """
-        Returns value of base weight
-        """
-        return self.base_weight
 
     def read(self):
         """
@@ -153,7 +140,7 @@ class WeightSensor_HX711:
         :param tolerance: minimum squared difference for change to be registered
         """
         new_weight = self.get_grams()
-        if (new_weight - self.prev_read) ** 2 >= tolerance:
+        if (new_weight - self.prev_read) ** 2 > tolerance:
             self.set_prev_read(new_weight)
             return True
         else:
@@ -161,10 +148,10 @@ class WeightSensor_HX711:
     
     def difference(self):
         """
-        Returns difference between current weight and base weight
+        Returns difference between current weight and offset
         """
         current = self.get_grams()
-        return current - self.get_base_weight()
+        return current - self.get_offset()
 
     def get_grams(self, times=16):
         """
@@ -177,14 +164,30 @@ class WeightSensor_HX711:
         grams = (value / self.SCALE)
         return grams
 
-    def calibrate(self, times=16):
+    def calibrate(self):
         """
         Tare functionality for calibration
         :param times: set value to calculate average
         """
-        avg = self.read_average(times)
-        self.set_offset(avg)
-        self.set_prev_read(avg)
+        print("Initializing.\n Please ensure that the platform is empty.")
+        scale_ready = False
+        while not scale_ready:
+            if (GPIO.input(self.DOUT) == 0):
+                scale_ready = False
+            if (GPIO.input(self.DOUT) == 1):
+                print("Initialization complete!")
+                scale_ready = True
+        readyCheck = input("Remove any items from platform. Press any key when ready.")
+        offset = self.read_average()
+        print("Value at zero (offset): {}".format(offset))
+        self.set_offset(offset)
+        print("Please place an item of known weight on the scale.")
+        item_weight = input("Please enter the item's weight in grams.\n>")
+        measured_weight = (self.read_average()-self.get_offset())
+        scale = int(measured_weight)/int(item_weight)
+        self.set_scale(scale)
+        print("Scale adjusted for grams: {}".format(scale))
+
 
     def power_down(self):
         """
@@ -198,15 +201,3 @@ class WeightSensor_HX711:
         Power the chip up
         """
         GPIO.output(self.PD_SCK, False)
-
-# A test script to play with the sensor functionality
-def main():
-  my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
-  my_sensor.calibrate()
-   
-  while(True):
-      print(my_sensor.prev_read)
-      time.sleep(5)
-
-if __name__ == '__main__':
-    main()
