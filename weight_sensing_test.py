@@ -7,7 +7,7 @@ def basic_tests(num_trials:int, sensor):
     total_error = 0
     print("---------- Now starting basic functionality tests ----------")
     for i in range(num_trials):
-        item_weight = input("Place an item on the scale. Enter the item's known weight in grams")
+        item_weight = float(input("Place an item on the scale. Enter the item's known weight in grams"))
         mes_weight = sensor.get_grams()
         print("Measured weight(grams): {}".format(mes_weight))
         dif = mes_weight - item_weight
