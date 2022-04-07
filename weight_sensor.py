@@ -184,7 +184,7 @@ class WeightSensor_HX711:
         print("Please place an item of known weight on the scale.")
         item_weight = input("Please enter the item's weight in grams.\n>")
         measured_weight = (self.read_average()-self.get_offset())
-        scale = int(measured_weight)/int(item_weight)
+        scale = (measured_weight)/float(item_weight)
         self.set_scale(scale)
         print("Scale adjusted for grams: {}".format(scale))
 
