@@ -161,7 +161,6 @@ def main():
     #thread_A = threading.Thread(target=test_motor_A)
     #thread_B = threading.Thread(target=test_motor_B)
 
-    test_motor_A()
     # Launch the threads
     try:
         test_motor_A()
