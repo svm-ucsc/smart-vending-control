@@ -7,6 +7,9 @@ from adafruit_motor import stepper
 from adafruit_motorkit import MotorKit
 from pathlib import Path
 
+# Define base I2C address (see soldered jumpers)
+I2C_ADDR = 0x61
+
 # Define filenames/locations for the stored positions of the stepper motors
 PLAT0_FILE = "channel0_pos.txt"
 PLAT0_LOC = Path(PLAT0_FILE)
@@ -25,7 +28,7 @@ class PlatformStepper:
     # Perform setup and check whether the position we are loading from is correct or not relative
     # to the expected neutral position of the stepper motor
     def __init__(self, channel:int):
-        self.kit = MotorKit(i2c=board.I2C())
+        self.kit = MotorKit(i2c=board.I2C(), address=I2C_ADDR)
         self.step_channel = None
         self.position = None
         self.pos_file = None
@@ -158,6 +161,7 @@ def main():
     #thread_A = threading.Thread(target=test_motor_A)
     #thread_B = threading.Thread(target=test_motor_B)
 
+    test_motor_A()
     # Launch the threads
     try:
         test_motor_A()
