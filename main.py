@@ -1,19 +1,15 @@
 import paho.mqtt.client as mqtt
 import json
-from movement.lane_stepper import *
+import movement.lane_stepper.ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
 import time 
-import threading
 
 NUM_ROWS = 4  # number of rows in machine
 NUM_COLS = 3  # number of columns in machine
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
 MAX_PLAT_VOL = 20    # total volume of available space on the platform
-LANE_LOCATIONS = [(1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3)]
-STEPPER_PINS = []
-SENSOR_PINS = []
 SUCCESS = True  # indicates if order handled successfully
 PLAT_CHANNEL = 0  # motor hat channel of platform stepper motor
 HX711_DOUT_PIN = 17  # dout GPIO pin of HX711 
@@ -24,7 +20,9 @@ ROW1_POS = 0
 ROW2_POS = 0
 ROW3_POS = 0
 PLAT_STEP_SPEED = 1  # speed of platform stepper rotations
-# TODO: Write function to adjust speed based on current weight on platform
+LANE_STEP_SPEED = 1  # speed of lane stepper rotations
+# TODO (extra functionality): Write function to adjust rotation
+# speeds based on current weight on platform and weights of items in lanes
 
 class Item(): 
   def __init__(self, info:dict):
@@ -42,11 +40,9 @@ class Item():
     return self.quantity
 
 class Machine():
-  def __init__(self, stepper_pins=STEPPER_PINS, lane_locations=LANE_LOCATIONS, \
-               max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
+  def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
     # Lane initializations
-    self.lane_locations = lane_locations
-    self.lanes = {k:ItemLaneStepper(self.stepper_pins) for k in self.lane_locations}
+    self.lane_sys = ils.ItemLaneSystem()
     
     # Platform initializations
     self.items_on_plat = []
@@ -55,7 +51,6 @@ class Machine():
     self.plat_weight = max_weight  # maximum weight capacity of platform
     self.plat_full = False         # indicates whether platform has reached max capacity
     self.plat_location = 0         # current row location of platform
-    self.lock = threading.Lock()
 
     # weight sensing initializations
     self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
@@ -73,9 +68,8 @@ class Machine():
     dif = pos - cur
     num_rotate = dif if dif >= 0 else dif * -1
     self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
+    self.plat_location = row
     
-    
-  
   @property
   def available_space(self):
     used_volume = 0
@@ -94,55 +88,65 @@ class Machine():
     """Dispenses all items in order."""
     pos = 0  # position in sorted order
     next_items = set() # set of items to dispense on the same row
-    while(pos < len(sorted_order)):
+    while(len(sorted_order) > 0):
       if len(next_items == 0):
-        next_items = {x for x in sorted_order if x.row == sorted_order[pos].row}
-        row = list(next_items).pop().row
+        next_items = [x for x in sorted_order if x.row == sorted_order[0].row]
+        row = next_items.pop().row
+      # Move platform
       if self.plat_location != row:
         self.move_platform(row=row)
+      # Release order
+      self.drop_items(next_items)
+      # Update order
       for item in next_items:
-        thread = threading.Thread(target=self.drop_item, args=(item))
-        thread.start()
-        thread.join()
-        num = item.decrement()
-        # remove item from set if full quantity has been dropped
-        if num == 0:
-          next_items.remove(item) 
-          pos += 1
+        if item.quantity == 0:
+          sorted_order.remove(item)
 
-  def drop_item(self, item) -> None:
+  def drop_items(self, items:list) -> None:
     """Releases an item from its item lane onto the platform"""
-    self.lock.acquire(blocking=True, timeout=- 1)
-    w = self.available_weight - item.weight
-    v = self.available_space - item.volume
-    if self.plat_full == True or  w < 0 or  v < 0:
-      self.deliver()
-    elif w == 0 or v == 0:
-      self.plat_full = True
-    self.lock.release()
-
-    motor = self.lanes[item.location] # motor to control based on item location
+    if self.plat_full == True:
+      self.deliver
+    for item in items:
+      w = self.available_weight - item.weight 
+      v = self.available_space - item.volume
+      if w < 0 or  v < 0:
+        self.deliver()
+      elif w == 0 or v == 0:
+        self.plat_full = True
+    
+    channels = [item.column * item.row for item in items]
+    
     tol = 1 # tolerance of weight difference in grams to confirm successful item drop
-    # rotate motors until item registered
-    while (self.sensor.detect_change() == False):
-      motor.rotate(direction="cw", speed=10, rotations=1)  # NOTE: change rotation to number needed to move belt a distance = space between notches
-      time.sleep(1)  # give item time to fall/settle
+    #TODO adjust tolerance to be relative to the item's weight i.e. use percentage. 
+    # Perhaps it should be relative only to the weight of the smallest item
+
+    #TODO use weight sensors to determine which of the items has fallen to properly account for stuck items. *******************
+    self.sensor.set_prev_read(self.sensor.get_grams())
+    added_weight = 0  # grams of weight added onto the platform
+    min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
+    while (added_weight < min_expected_weight):
+      self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 1)  # TODO: Replace number of rotations with experimentally measured value
+      time.sleep(1)  # give items time to fall/settle
     self.items_on_plat.append(item)
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
-    self.move_platform(row=0)
+    self.platform_stepper.reset_position()
     self.ItemsReceived()
     self.plat_full == False
 
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
-    tolerance = 0.1  # acceptable variation from the initial in grams
+    tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
     self.items_on_plat = []
     return True
+  
+  def item_stuck(item, channel) -> bool:
+    """Handles stuck item situation"""
+    pass
    
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
