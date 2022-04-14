@@ -10,11 +10,21 @@ NUM_ROWS = 4  # number of rows in machine
 NUM_COLS = 3  # number of columns in machine
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
-PLAT_VOL = 20    # total volume of available space on the platform
+MAX_PLAT_VOL = 20    # total volume of available space on the platform
 LANE_LOCATIONS = [(1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3)]
 STEPPER_PINS = []
 SENSOR_PINS = []
 SUCCESS = True  # indicates if order handled successfully
+PLAT_CHANNEL = 0  # motor hat channel of platform stepper motor
+HX711_DOUT_PIN = 17  # dout GPIO pin of HX711 
+HX711_SDK_PIN = 18  # sdk GPIO pin of HX711 
+HX711_GAIN = 128
+ # platform stepper motor positions by row
+ROW1_POS = 0 
+ROW2_POS = 0
+ROW3_POS = 0
+PLAT_STEP_SPEED = 1  # speed of platform stepper rotations
+# TODO: Write function to adjust speed based on current weight on platform
 
 class Item(): 
   def __init__(self, info:dict):
@@ -32,31 +42,39 @@ class Item():
     return self.quantity
 
 class Machine():
-  def __init__(self, stepper_pins=STEPPER_PINS, sensor_pins=SENSOR_PINS, lane_locations=LANE_LOCATIONS, \
-               plat_vol=PLAT_VOL, max_weight=MAX_WEIGHT):
+  def __init__(self, stepper_pins=STEPPER_PINS, lane_locations=LANE_LOCATIONS, \
+               max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
+    # Lane initializations
     self.lane_locations = lane_locations
     self.lanes = {k:ItemLaneStepper(self.stepper_pins) for k in self.lane_locations}
+    
+    # Platform initializations
     self.items_on_plat = []
-    self.plat_vol = PLAT_VOL       # maximum item volume capacity of platform
+    self.plat_stepper = PlatformStepper(PLAT_CHANNEL)
+    self.plat_vol = max_plat_vol       # maximum item volume capacity of platform
     self.plat_weight = max_weight  # maximum weight capacity of platform
     self.plat_full = False         # indicates whether platform has reached max capacity
     self.plat_location = 0         # current row location of platform
     self.lock = threading.Lock()
 
-    # set up weight sensing
-    self.sensor = WeightSensor_HX711(self.sensor_pins, gain=128)
+    # weight sensing initializations
+    self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
     self.sensor.calibrate()
     
     def setup_lane_motors():
       """Helper function to instantiate lane motors."""
-      pass
-    def setup_platform_motors():
-      """Helper function to instantiate plaform motors"""
-      pass
+      pass 
   
   def move_platform(self, row) -> None:
-    """Controls motors to move platform to desired row"""
-    pass
+    """Controls motor to move platform to desired row"""
+    pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS
+    cur = self.plat_stepper.get_position()
+    dir = 'cw' if (pos > cur) else 'ccw'
+    dif = pos - cur
+    num_rotate = dif if dif >= 0 else dif * -1
+    self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
+    
+    
   
   @property
   def available_space(self):
@@ -165,7 +183,7 @@ def on_message(client, userdata, msg):
   machine = Machine()
   order = parse_payload(msg.payload)
   sorted_order = schedule_order(order)
-  # machine.dispense(sorted_order)
+  machine.dispense(sorted_order)
   # publish success or failure message here ***
  
   
