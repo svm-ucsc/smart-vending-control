@@ -33,6 +33,7 @@ class Item():
     self.volume = info["volume"]      # volume of one unit
     self.row = info["row"]
     self.column = info["column"]
+    self.channel = (self.row*3)-(3-self.column)
 
   def decrement(self):
     """Decrement item quantity and return new value"""
@@ -55,10 +56,6 @@ class Machine():
     # weight sensing initializations
     self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
     self.sensor.calibrate()
-    
-    def setup_lane_motors():
-      """Helper function to instantiate lane motors."""
-      pass 
   
   def move_platform(self, row) -> None:
     """Controls motor to move platform to desired row"""
@@ -85,8 +82,6 @@ class Machine():
     return self.plat_weight - used_weight
 
   def dispense(self, sorted_order) -> None:
-    """Dispenses all items in order."""
-    pos = 0  # position in sorted order
     next_items = set() # set of items to dispense on the same row
     while(len(sorted_order) > 0):
       if len(next_items == 0):
@@ -114,7 +109,7 @@ class Machine():
       elif w == 0 or v == 0:
         self.plat_full = True
     
-    channels = [item.column * item.row for item in items]
+    channels = [item.channel for item in items]  # get motor channels
     
     tol = 1 # tolerance of weight difference in grams to confirm successful item drop
     #TODO adjust tolerance to be relative to the item's weight i.e. use percentage. 
