@@ -1,63 +1,95 @@
 import paho.mqtt.client as mqtt
 import json
-from movement.lane_stepper import *
+from movement.lane_stepper.build.ItemLaneSystem import ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
 import time 
-import threading
 
 NUM_ROWS = 4  # number of rows in machine
 NUM_COLS = 3  # number of columns in machine
 BASE_WEIGHT = 0  # weight of inner platform on senors
 MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
-PLAT_VOL = 20    # total volume of available space on the platform
-LANE_LOCATIONS = [(1,1), (1,2), (1,3), (2,1), (2,2), (2,3), (3,1), (3,2), (3,3)]
-STEPPER_PINS = []
-SENSOR_PINS = []
+MAX_PLAT_VOL = 20    # total volume of available space on the platform
 SUCCESS = True  # indicates if order handled successfully
+PLAT_CHANNEL = 0  # motor hat channel of platform stepper motor
+HX711_DOUT_PIN = 17  # dout GPIO pin of HX711 
+HX711_SDK_PIN = 18  # sdk GPIO pin of HX711 
+HX711_GAIN = 128
+ # platform stepper motor positions by row
+ROW1_POS = 0 
+ROW2_POS = 0
+ROW3_POS = 0
+PLAT_STEP_SPEED = 1  # speed of platform stepper rotations
+LANE_STEP_SPEED = 1  # speed of lane stepper rotations
+# TODO (extra functionality): Write function to adjust rotation
+# speeds based on current weight on platform and weights of items in lanes
 
 class Item(): 
   def __init__(self, info:dict):
-    self.UID = info["UID"]  # indicates order that item is a part of 
-    self.name = info["name"]
     self.quantity = info["quantity"]  # amount to be dispensed
     self.weight = info["weight"]      # weight of one unit
     self.volume = info["volume"]      # volume of one unit
     self.row = info["row"]
     self.column = info["column"]
+    self.channel = (self.row*3)-(3-self.column)
 
   def decrement(self):
     """Decrement item quantity and return new value"""
     self.quantity = self.quantity - 1
     return self.quantity
 
+class Order():
+  def __init__(self, ID, items:list):
+    self.ID = ID
+    self.items = schedule_order(items)
+  
+    def schedule_order(order):
+      """Determines the order in which items should be dispensed based on location
+      Returns sorted list of item objects.
+      """
+      row_num = 1
+      sorted_order = []
+      while len(sorted_order) < len(order):
+        for i in order:
+          if i.row == row_num:
+            sorted_order.append(i)
+        row_num += 1
+      return sorted_order
+  
+  def remove_item(self, item:Item):
+    self.items.remove(Item)
+
 class Machine():
-  def __init__(self, stepper_pins=STEPPER_PINS, sensor_pins=SENSOR_PINS, lane_locations=LANE_LOCATIONS, \
-               plat_vol=PLAT_VOL, max_weight=MAX_WEIGHT):
-    self.lane_locations = lane_locations
-    self.lanes = {k:ItemLaneStepper(self.stepper_pins) for k in self.lane_locations}
+  def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
+    # Lane initializations
+    self.lane_sys = ils.ItemLaneSystem()
+    
+    # Platform initializations
     self.items_on_plat = []
-    self.plat_vol = PLAT_VOL       # maximum item volume capacity of platform
+    self.plat_stepper = PlatformStepper(PLAT_CHANNEL)
+    self.plat_vol = max_plat_vol       # maximum item volume capacity of platform
     self.plat_weight = max_weight  # maximum weight capacity of platform
     self.plat_full = False         # indicates whether platform has reached max capacity
     self.plat_location = 0         # current row location of platform
-    self.lock = threading.Lock()
 
-    # set up weight sensing
-    self.sensor = WeightSensor_HX711(self.sensor_pins, gain=128)
+    # weight sensing initializations
+    self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
     self.sensor.calibrate()
+  
+  def move_platform(self, row) -> bool:
+    """Controls motor to move platform to desired row"""
+    pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS  # desired platform position
+    cur = self.plat_stepper.get_position()
+    dir = 'cw' if (pos > cur) else 'ccw'
+    dif = pos - cur
+    num_rotate = dif if dif >= 0 else dif * -1  # number of steps
+    try:
+      self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
+    except:
+      return False
+    self.plat_location = row
+    return True
     
-    def setup_lane_motors():
-      """Helper function to instantiate lane motors."""
-      pass
-    def setup_platform_motors():
-      """Helper function to instantiate plaform motors"""
-      pass
-  
-  def move_platform(self, row) -> None:
-    """Controls motors to move platform to desired row"""
-    pass
-  
   @property
   def available_space(self):
     used_volume = 0
@@ -72,59 +104,73 @@ class Machine():
       used_weight += i.weight
     return self.plat_weight - used_weight
 
-  def dispense(self, sorted_order) -> None:
-    """Dispenses all items in order."""
-    pos = 0  # position in sorted order
+  def dispense(self, order:Order) -> None:
     next_items = set() # set of items to dispense on the same row
-    while(pos < len(sorted_order)):
+    while(len(order.items) > 0):
       if len(next_items == 0):
-        next_items = {x for x in sorted_order if x.row == sorted_order[pos].row}
-        row = list(next_items).pop().row
+        next_items = [x for x in order.items if x.row == order.items[0].row]
+        row = next_items.pop().row
+      # Move platform
       if self.plat_location != row:
-        self.move_platform(row=row)
+        try:
+          assert self.move_platform(row=row) == True
+        except:
+          return False
+      # Release order
+      self.drop_items(next_items)
+      # Update order
       for item in next_items:
-        thread = threading.Thread(target=self.drop_item, args=(item))
-        thread.start()
-        thread.join()
-        num = item.decrement()
-        # remove item from set if full quantity has been dropped
-        if num == 0:
-          next_items.remove(item) 
-          pos += 1
+        if item.quantity == 0:
+          order.remove_item(item)
 
-  def drop_item(self, item) -> None:
+  def drop_items(self, items:list) -> None:
     """Releases an item from its item lane onto the platform"""
-    self.lock.acquire(blocking=True, timeout=- 1)
-    w = self.available_weight - item.weight
-    v = self.available_space - item.volume
-    if self.plat_full == True or  w < 0 or  v < 0:
-      self.deliver()
-    elif w == 0 or v == 0:
-      self.plat_full = True
-    self.lock.release()
-
-    motor = self.lanes[item.location] # motor to control based on item location
+    if self.plat_full == True:
+      self.deliver
+    for item in items:
+      w = self.available_weight - item.weight 
+      v = self.available_space - item.volume
+      if w < 0 or  v < 0:
+        self.deliver()
+      elif w == 0 or v == 0:
+        self.plat_full = True
+    
+    channels = [item.channel for item in items]  # get motor channels
+    
     tol = 1 # tolerance of weight difference in grams to confirm successful item drop
-    # rotate motors until item registered
-    while (self.sensor.detect_change() == False):
-      motor.rotate(direction="cw", speed=10, rotations=1)  # NOTE: change rotation to number needed to move belt a distance = space between notches
-      time.sleep(1)  # give item time to fall/settle
+    #TODO adjust tolerance to be relative to the item's weight i.e. use percentage. 
+    # Perhaps it should be relative only to the weight of the smallest item
+
+    #TODO use weight sensors to determine which of the items has fallen to properly account for stuck items. *******************
+    #TODO choose a number of iterations before giving up if dispensing unsuccessful
+    self.sensor.set_prev_read(self.sensor.get_grams())
+    added_weight = 0  # grams of weight added onto the platform
+    min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
+    while (added_weight < min_expected_weight):
+      self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 1)  # TODO: Replace number of rotations with experimentally measured value
+      time.sleep(1)  # give items time to fall/settle
+      added_weight = self.sensor.get_grams
     self.items_on_plat.append(item)
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
-    self.move_platform(row=0)
+    self.platform_stepper.reset_position()
     self.ItemsReceived()
     self.plat_full == False
 
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
-    tolerance = 0.1  # acceptable variation from the initial in grams
+    tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
+    # TODO: Account for situation where items not received after a long period of time
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
     self.items_on_plat = []
     return True
+  
+  def item_stuck(item, channel):
+    """Handles stuck item situation"""
+    pass
    
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
@@ -132,22 +178,10 @@ def parse_payload(payload):
   """
   order = []
   item_info = json.loads(payload)
-  for i in item_info:
+  order_ID = item_info['orderID']
+  for i in item_info['orderList']:
     order.append(Item(i))
   return order
-
-def schedule_order(order):
-  """Determines the order in which items should be dispensed based on location
-  Returns sorted list of item objects.
-  """
-  row_num = 1
-  sorted_order = []
-  while len(sorted_order) < len(order):
-    for i in order:
-      if i.row == row_num:
-        sorted_order.append(i)
-    row_num += 1
-  return sorted_order
   
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -163,9 +197,8 @@ def on_message(client, userdata, msg):
   """
   print(msg.topic+" "+str(msg.payload))
   machine = Machine()
-  order = parse_payload(msg.payload)
-  sorted_order = schedule_order(order)
-  # machine.dispense(sorted_order)
+  order = Order(parse_payload(msg.payload))
+  machine.dispense(order)
   # publish success or failure message here ***
  
   
