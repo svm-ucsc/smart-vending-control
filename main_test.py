@@ -12,19 +12,15 @@ Cheetos = Item(item1_info)
 Hershey = Item(item2_info)
 Skittles = Item(item3_info)
 
-order1 = [Cheetos, Hershey, Skittles]
-order2 = [Hershey, Skittles, Cheetos]
-order3 = [Skittles, Hershey, Cheetos]
+order1 = Order("1", [Cheetos, Hershey, Skittles])
+order2 = Order("2", [Hershey, Skittles, Cheetos])
+order3 = Order("3", [Skittles, Hershey, Cheetos])
 
-# tests for schedule_order
-expected = [Cheetos, Hershey, Skittles]
-s_order1 = schedule_order(order1)
-s_order2 = schedule_order(order2)
-s_order3 = schedule_order(order3)
+# tests for schedule_order *****************************
 try:
-    assert (s_order1[2] == s_order2[2] == s_order3[2] == Skittles)
+    assert (order1.items[2] == order2.items[2] == order3.items[2] == Skittles)
     print("***PASSED test for schedule order***")
 except:
     print("***FAILED test for schedule order***")
     print("\tExpected [Cheetos, Hershey, Skittles] or [Hershey, Cheetos, Skittles]\n")
-    print("Actual: {}, {}, {}".format(s_order1, s_order2, s_order3))
+    print("Actual: {}, {}, {}".format(order1.items, order2.items, order3.items))
