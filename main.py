@@ -26,8 +26,6 @@ LANE_STEP_SPEED = 1  # speed of lane stepper rotations
 
 class Item(): 
   def __init__(self, info:dict):
-    self.UID = info["UID"]  # indicates order that item is a part of 
-    self.name = info["name"]
     self.quantity = info["quantity"]  # amount to be dispensed
     self.weight = info["weight"]      # weight of one unit
     self.volume = info["volume"]      # volume of one unit
@@ -39,6 +37,27 @@ class Item():
     """Decrement item quantity and return new value"""
     self.quantity = self.quantity - 1
     return self.quantity
+
+class Order():
+  def __init__(self, ID, items:list):
+    self.ID = ID
+    self.items = schedule_order(items)
+  
+    def schedule_order(order):
+      """Determines the order in which items should be dispensed based on location
+      Returns sorted list of item objects.
+      """
+      row_num = 1
+      sorted_order = []
+      while len(sorted_order) < len(order):
+        for i in order:
+          if i.row == row_num:
+            sorted_order.append(i)
+        row_num += 1
+      return sorted_order
+  
+  def remove_item(self, item:Item):
+    self.items.remove(Item)
 
 class Machine():
   def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
@@ -85,24 +104,24 @@ class Machine():
       used_weight += i.weight
     return self.plat_weight - used_weight
 
-  def dispense(self, sorted_order) -> None:
+  def dispense(self, order:Order) -> None:
     next_items = set() # set of items to dispense on the same row
-    while(len(sorted_order) > 0):
+    while(len(order.items) > 0):
       if len(next_items == 0):
-        next_items = [x for x in sorted_order if x.row == sorted_order[0].row]
+        next_items = [x for x in order.items if x.row == order.items[0].row]
         row = next_items.pop().row
       # Move platform
       if self.plat_location != row:
         try:
           assert self.move_platform(row=row) == True
-        else:
+        except:
           return False
       # Release order
       self.drop_items(next_items)
       # Update order
       for item in next_items:
         if item.quantity == 0:
-          sorted_order.remove(item)
+          order.remove_item(item)
 
   def drop_items(self, items:list) -> None:
     """Releases an item from its item lane onto the platform"""
@@ -159,22 +178,10 @@ def parse_payload(payload):
   """
   order = []
   item_info = json.loads(payload)
-  for i in item_info:
+  order_ID = item_info['orderID']
+  for i in item_info['orderList']:
     order.append(Item(i))
   return order
-
-def schedule_order(order):
-  """Determines the order in which items should be dispensed based on location
-  Returns sorted list of item objects.
-  """
-  row_num = 1
-  sorted_order = []
-  while len(sorted_order) < len(order):
-    for i in order:
-      if i.row == row_num:
-        sorted_order.append(i)
-    row_num += 1
-  return sorted_order
   
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -190,9 +197,8 @@ def on_message(client, userdata, msg):
   """
   print(msg.topic+" "+str(msg.payload))
   machine = Machine()
-  order = parse_payload(msg.payload)
-  sorted_order = schedule_order(order)
-  machine.dispense(sorted_order)
+  order = Order(parse_payload(msg.payload))
+  machine.dispense(order)
   # publish success or failure message here ***
  
   
