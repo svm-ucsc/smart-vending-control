@@ -5,6 +5,8 @@ from movement.platform_stepper import *
 from weight_sensor import *
 import time 
 
+CLIENT_ID = "pi1"
+
 NUM_ROWS = 4  # number of rows in machine
 NUM_COLS = 3  # number of columns in machine
 BASE_WEIGHT = 0  # weight of inner platform on senors
@@ -183,12 +185,34 @@ def parse_payload(payload):
     order.append(Item(i))
   return order
   
+
+def on_order(client, userdata, msg):
+
+    order = json.loads(msg.payload)
+    print("Recieved order: " + str(order))
+    order_id = order['orderID']
+    
+    response_body = {
+        "status": "SUCCESS",
+        "order_id": order_id,
+    }
+    
+    machine = Machine()
+    order = Order(parse_payload(msg.payload))
+    machine.dispense(order)
+
+    vend_successful = True
+    if(vend_successful): 
+        client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
     # Subscribing in on_connect() means that if we lose the connection and
     # reconnect then subscriptions will be renewed.
-    client.subscribe("topic")
+    client.subscribe(CLIENT_ID+"/order/vend")
+    connectStatus = "READY"
+    client.publish(CLIENT_ID+"/status", payload=json.dumps({"status": connectStatus}), qos=2)
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -196,20 +220,33 @@ def on_message(client, userdata, msg):
   Published message consists of UUID for order and indication of success or failure
   """
   print(msg.topic+" "+str(msg.payload))
-  machine = Machine()
-  order = Order(parse_payload(msg.payload))
-  machine.dispense(order)
+  
   # publish success or failure message here ***
  
-  
+# The callback for when a PUBLISH message is received from the server.
+def on_message(client, userdata, msg):
+    """Processes and dispenses order. Returns success or failure message upon completion
+    Published message consists of UUID for order and indication of success or failure
+    """
+    print(msg.topic+" "+str(msg.payload))
+    machine = Machine()
+    order = Order(parse_payload(msg.payload))
+    machine.dispense(order)
+    # publish success or failure message here ***
 
-client = mqtt.Client()
+client = mqtt.Client(client_id=CLIENT_ID,clean_session=False)
 client.username_pw_set("lenatest", "password")
 client.on_connect = on_connect
 client.on_message = on_message
 
+client.will_set(CLIENT_ID+"/status", payload=json.dumps({"status": "LWT"}), qos=2)
+
 client.connect("ec2-3-87-77-241.compute-1.amazonaws.com", 1884, 60)
+
+client.message_callback_add(CLIENT_ID+"/order/vend", on_order)
 
 # Blocking call that processes network traffic, dispatches callbacks and
 # handles reconnecting.
+# Other loop*() functions are available that give a threaded interface and a
+# manual interface.
 client.loop_forever()
