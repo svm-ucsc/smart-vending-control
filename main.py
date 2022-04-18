@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
-import movement.lane_stepper.ItemLaneSystem as ils
+from movement.lane_stepper.build.ItemLaneSystem import ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
 import time 
@@ -57,15 +57,19 @@ class Machine():
     self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
     self.sensor.calibrate()
   
-  def move_platform(self, row) -> None:
+  def move_platform(self, row) -> bool:
     """Controls motor to move platform to desired row"""
-    pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS
+    pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS  # desired platform position
     cur = self.plat_stepper.get_position()
     dir = 'cw' if (pos > cur) else 'ccw'
     dif = pos - cur
-    num_rotate = dif if dif >= 0 else dif * -1
-    self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
+    num_rotate = dif if dif >= 0 else dif * -1  # number of steps
+    try:
+      self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
+    except:
+      return False
     self.plat_location = row
+    return True
     
   @property
   def available_space(self):
@@ -89,7 +93,10 @@ class Machine():
         row = next_items.pop().row
       # Move platform
       if self.plat_location != row:
-        self.move_platform(row=row)
+        try:
+          assert self.move_platform(row=row) == True
+        else:
+          return False
       # Release order
       self.drop_items(next_items)
       # Update order
@@ -116,12 +123,14 @@ class Machine():
     # Perhaps it should be relative only to the weight of the smallest item
 
     #TODO use weight sensors to determine which of the items has fallen to properly account for stuck items. *******************
+    #TODO choose a number of iterations before giving up if dispensing unsuccessful
     self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0  # grams of weight added onto the platform
     min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
     while (added_weight < min_expected_weight):
       self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 1)  # TODO: Replace number of rotations with experimentally measured value
       time.sleep(1)  # give items time to fall/settle
+      added_weight = self.sensor.get_grams
     self.items_on_plat.append(item)
 
   def deliver(self):
@@ -133,13 +142,14 @@ class Machine():
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
     tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
+    # TODO: Account for situation where items not received after a long period of time
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
     self.items_on_plat = []
     return True
   
-  def item_stuck(item, channel) -> bool:
+  def item_stuck(item, channel):
     """Handles stuck item situation"""
     pass
    
