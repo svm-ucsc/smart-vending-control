@@ -156,9 +156,10 @@ class Machine():
     #TODO choose a number of iterations before giving up if dispensing unsuccessful
     self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0  # grams of weight added onto the platform
-    min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
+    min_expected_weight = 100000#sum([item.weight for item in items]) - (tol * len(items))
     print("Checking weight sensor")
-    print("Number of channels, len(channels)")
+    print("Number of channels: ", len(channels))
+    print("Added weight: {}, min_expected_weight: {}".format(added_weight, min_expected_weight))
     while (added_weight < min_expected_weight):
       print("About to rotate: {}".format(channels))
       dir = ['cw' for i in range(len(channels))]
