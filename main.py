@@ -182,7 +182,7 @@ def parse_payload(payload):
   item_info = json.loads(payload)
   order_ID = item_info['orderID']
   for i in item_info['orderList']:
-    order.append(Item(item_info['order_list'][i]))
+    order.append(Item(item_info['orderList'][i]))
   return order
   
 
