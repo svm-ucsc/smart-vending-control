@@ -33,7 +33,7 @@ class Item():
     self.volume = info['volume']      # volume of one unit
     self.row = info['row']
     self.column = info['column']
-    self.channel = (self.row*3)-(3-self.column)
+    self.channel = 1#(info['row']*3)-(3-info['column'])
 
   def decrement(self):
     """Decrement item quantity and return new value"""
