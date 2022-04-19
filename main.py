@@ -88,7 +88,7 @@ class Machine():
     num_rotate = dif if dif >= 0 else dif * -1  # number of steps
     try:
       print("Moving the platform {} steps".format(num_rotate))
-      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, num_rotate)
+      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, 10)
     except:
       return False
     self.plat_location = row
@@ -159,7 +159,7 @@ class Machine():
     min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
     print("Checking weight sensor")
     while (added_weight < min_expected_weight):
-      self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 1)  # TODO: Replace number of rotations with experimentally measured value
+      self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 20)  # TODO: Replace number of rotations with experimentally measured value
       time.sleep(1)  # give items time to fall/settle
       added_weight = self.sensor.get_grams
     print("Weight successfully registered")
