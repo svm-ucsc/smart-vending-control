@@ -60,7 +60,7 @@ class Order():
     self.items = schedule_order(items)
   
   def remove_item(self, item:Item):
-    self.items.remove(Item)
+    self.items.remove(item)
 
 class Machine():
   def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
