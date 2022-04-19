@@ -43,7 +43,6 @@ class Item():
 class Order():
   def __init__(self, ID, items:list):
     self.ID = ID
-    self.items = schedule_order(items)
   
     def schedule_order(order):
       """Determines the order in which items should be dispensed based on location
@@ -57,6 +56,8 @@ class Order():
             sorted_order.append(i)
         row_num += 1
       return sorted_order
+    
+    self.items = schedule_order(items)
   
   def remove_item(self, item:Item):
     self.items.remove(Item)
