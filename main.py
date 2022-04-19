@@ -115,6 +115,7 @@ class Machine():
         next_items = [x for x in order.items if x.row == order.items[0].row]
         row = next_items.pop().row
       # Move platform
+      print("Items to drop: {}".format(next_items))
       if self.plat_location != row:
         print("About to try to move the platform")
         try:
@@ -220,6 +221,7 @@ def on_order(client, userdata, msg):
     
     machine = Machine()
     order = Order(order_id, parse_payload(msg.payload))
+    print("Items in order: {}".format(order.items))
     machine.dispense(order)
 
     vend_successful = True
