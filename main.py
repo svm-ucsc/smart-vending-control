@@ -159,9 +159,10 @@ class Machine():
     min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
     print("Checking weight sensor")
     while (added_weight < min_expected_weight):
+      print("About to rotate: {}".format(channels))
       self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 20)  # TODO: Replace number of rotations with experimentally measured value
       time.sleep(1)  # give items time to fall/settle
-      added_weight = self.sensor.get_grams
+      #added_weight = self.sensor.get_grams
     print("Weight successfully registered")
     for item in items:
       self.items_on_plat.append(item)
