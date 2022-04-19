@@ -109,11 +109,11 @@ class Machine():
     return self.plat_weight - used_weight
 
   def dispense(self, order:Order) -> None:
-    next_items = set() # set of items to dispense on the same row
+    next_items = []
     while(len(order.items) > 0):
       if len(next_items) == 0:
-        next_items = [x for x in order.items if x.row == order.items[0].row]
-        row = next_items.pop().row
+        row = order.items[0].row
+        next_items = [x for x in order.items if x.row == row]
       # Move platform
       print("Items to drop: {}".format(next_items))
       if self.plat_location != row:
