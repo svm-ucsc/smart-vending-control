@@ -21,7 +21,7 @@ HX711_GAIN = 128
 ROW1_POS = 0 
 ROW2_POS = 0
 ROW3_POS = 0
-PLAT_STEP_SPEED = 1  # speed of platform stepper rotations
+PLAT_STEP_SPEED = 1000  # speed of platform stepper rotations
 LANE_STEP_SPEED = 1  # speed of lane stepper rotations
 # TODO (extra functionality): Write function to adjust rotation
 # speeds based on current weight on platform and weights of items in lanes
