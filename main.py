@@ -28,7 +28,6 @@ LANE_STEP_SPEED = 1  # speed of lane stepper rotations
 
 class Item(): 
   def __init__(self, info:dict):
-    print("info: {}".format(info))
     self.quantity = info['quantity']  # amount to be dispensed
     self.weight = info['weight']      # weight of one unit
     self.volume = info['volume']      # volume of one unit
@@ -182,10 +181,8 @@ def parse_payload(payload):
   order = []
   item_info = json.loads(payload)
   order_ID = item_info['orderID']
-  print("order: {}".format(item_info))
   for i in item_info['orderList']:
-    print('Item: {}\n'.format(i))
-    order.append(Item(i))
+    order.append(Item(item_info[i]))
   return order
   
 
