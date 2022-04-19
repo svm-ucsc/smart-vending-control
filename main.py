@@ -41,7 +41,7 @@ class Item():
     return self.quantity
 
 class Order():
-  def __init__(self, order_id, items:list):
+  def __init__(self, ID, items:list):
     self.ID = ID
     self.items = schedule_order(items)
   
