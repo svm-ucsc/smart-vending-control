@@ -163,7 +163,8 @@ class Machine():
       time.sleep(1)  # give items time to fall/settle
       added_weight = self.sensor.get_grams
     print("Weight successfully registered")
-    self.items_on_plat.append(item)
+    for item in items:
+      self.items_on_plat.append(item)
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
