@@ -41,7 +41,7 @@ class Item():
     return self.quantity
 
 class Order():
-  def __init__(self, ID, items:list):
+  def __init__(self, order_id, items:list):
     self.ID = ID
     self.items = schedule_order(items)
   
@@ -198,7 +198,7 @@ def on_order(client, userdata, msg):
     }
     
     machine = Machine()
-    order = Order(parse_payload(msg.payload))
+    order = Order(order_id, parse_payload(msg.payload))
     machine.dispense(order)
 
     vend_successful = True
