@@ -110,7 +110,7 @@ class Machine():
   def dispense(self, order:Order) -> None:
     next_items = set() # set of items to dispense on the same row
     while(len(order.items) > 0):
-      if len(next_items == 0):
+      if len(next_items) == 0:
         next_items = [x for x in order.items if x.row == order.items[0].row]
         row = next_items.pop().row
       # Move platform
