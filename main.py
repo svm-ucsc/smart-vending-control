@@ -18,9 +18,9 @@ HX711_DOUT_PIN = 17  # dout GPIO pin of HX711
 HX711_SDK_PIN = 18  # sdk GPIO pin of HX711 
 HX711_GAIN = 128
  # platform stepper motor positions by row
-ROW1_POS = 0 
-ROW2_POS = 0
-ROW3_POS = 0
+ROW1_POS = 20 
+ROW2_POS = 30
+ROW3_POS = 40
 PLAT_STEP_SPEED = 1000  # speed of platform stepper rotations
 LANE_STEP_SPEED = 1  # speed of lane stepper rotations
 # TODO (extra functionality): Write function to adjust rotation
