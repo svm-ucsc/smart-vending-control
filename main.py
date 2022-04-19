@@ -28,6 +28,7 @@ LANE_STEP_SPEED = 1  # speed of lane stepper rotations
 
 class Item(): 
   def __init__(self, info:dict):
+    print("info: {}".format(info))
     self.quantity = info['quantity']  # amount to be dispensed
     self.weight = info['weight']      # weight of one unit
     self.volume = info['volume']      # volume of one unit
