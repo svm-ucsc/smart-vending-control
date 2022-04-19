@@ -158,7 +158,7 @@ class Machine():
     added_weight = 0  # grams of weight added onto the platform
     min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
     print("Checking weight sensor")
-    self.lane_sys
+    
     while (added_weight < min_expected_weight):
       print("About to rotate: {}".format(channels))
       dir = ['cw' for i in range(len(channels))]
