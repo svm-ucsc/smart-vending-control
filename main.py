@@ -87,7 +87,7 @@ class Machine():
     dif = pos - cur
     num_rotate = dif if dif >= 0 else dif * -1  # number of steps
     try:
-      print("Moving the platform")
+      print("Moving the platform {} steps".format(num_rotate))
       self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
     except:
       return False
