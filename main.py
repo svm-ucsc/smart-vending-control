@@ -87,6 +87,7 @@ class Machine():
     dif = pos - cur
     num_rotate = dif if dif >= 0 else dif * -1  # number of steps
     try:
+      print("Moving the platform")
       self.plat_stepper.rotate(self, dir, PLAT_STEP_SPEED, num_rotate)
     except:
       return False
@@ -115,25 +116,32 @@ class Machine():
         row = next_items.pop().row
       # Move platform
       if self.plat_location != row:
+        print("About to try to move the platform")
         try:
           assert self.move_platform(row=row) == True
         except:
           return False
       # Release order
+      print("Preparing to drop items")
       self.drop_items(next_items)
+      print("Items dropped")
       # Update order
       for item in next_items:
+        print("Updating order")
         if item.quantity == 0:
           order.remove_item(item)
+    self.deliver()
 
   def drop_items(self, items:list) -> None:
     """Releases an item from its item lane onto the platform"""
+    print("Dropping items")
     if self.plat_full == True:
       self.deliver
     for item in items:
       w = self.available_weight - item.weight 
       v = self.available_space - item.volume
       if w < 0 or  v < 0:
+        print("Not enough available weight or space. Preparing to deliver")
         self.deliver()
       elif w == 0 or v == 0:
         self.plat_full = True
@@ -149,14 +157,17 @@ class Machine():
     self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0  # grams of weight added onto the platform
     min_expected_weight = sum([item.weight for item in items]) - (tol * len(items))
+    print("Checking weight sensor")
     while (added_weight < min_expected_weight):
       self.lane_sys.rotate_n(channels, ['cw' for i in range(len(channels))], 1)  # TODO: Replace number of rotations with experimentally measured value
       time.sleep(1)  # give items time to fall/settle
       added_weight = self.sensor.get_grams
+    print("Weight successfully registered")
     self.items_on_plat.append(item)
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
+    print("Resetting platform to deliver items")
     self.platform_stepper.reset_position()
     self.ItemsReceived()
     self.plat_full == False
@@ -165,10 +176,12 @@ class Machine():
     """Checks that items have been removed from the platform and the weight has returned to initial"""
     tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
     # TODO: Account for situation where items not received after a long period of time
+    print("Waiting for items to be received")
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
     self.items_on_plat = []
+    print("Items received")
     return True
   
   def item_stuck(item, channel):
