@@ -60,21 +60,23 @@ class Item():
 # Holds all of the information needed to process an order (i.e. a set of items to dispense)
 class Order():
   def __init__(self, ID, items:list):
-    self.ID = ID
-  
+    
     def schedule_order(order):
       """Determines the order in which items should be dispensed based on location
       Returns sorted list of item objects.
       """
       row_num = 1
       sorted_order = []
+      
       while len(sorted_order) < len(order):
         for i in order:
           if i.row == row_num:
             sorted_order.append(i)
         row_num += 1
+      
       return sorted_order
     
+    self.ID = ID
     self.items = schedule_order(items)
   
   def remove_item(self, item:Item):
@@ -96,7 +98,7 @@ class Machine():
     self.plat_full = False              # Indicates whether platform has reached max capacity
     self.plat_location = 0              # Current row location of platform
 
-    # weight sensing initializations
+    # Weight sensing initializations
     self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
     self.sensor.calibrate()
   
@@ -107,12 +109,15 @@ class Machine():
     dir = 'cw' if (pos > cur) else 'ccw'
     dif = pos - cur
     num_rotate = dif if dif >= 0 else dif * -1  # number of steps
+    
     try:
       print("Moving the platform {} steps".format(num_rotate))
       self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, 10)
     except:
       return False
+    
     self.plat_location = row
+    
     return True
     
   @property
@@ -120,6 +125,7 @@ class Machine():
     used_volume = 0
     for i in self.items_on_plat:
       used_volume += i.volume
+    
     return self.plat_vol - used_volume
   
   @property
@@ -127,14 +133,17 @@ class Machine():
     used_weight = 0
     for i in self.items_on_plat:
       used_weight += i.weight
+    
     return self.plat_weight - used_weight
 
   def dispense(self, order:Order) -> None:
     next_items = []
+    
     while(len(order.items) > 0):
       if len(next_items) == 0:
         row = order.items[0].row
         next_items = [x for x in order.items if x.row == row]
+      
       # Move platform
       print("Items to drop: {}".format(next_items))
       if self.plat_location != row:
@@ -143,15 +152,18 @@ class Machine():
           assert self.move_platform(row=row) == True
         except:
           return False
+      
       # Release order
       print("Preparing to drop items")
       self.drop_items(next_items)
       print("Items dropped")
+      
       # Update order
       for item in next_items:
         print("Updating order")
         if item.quantity == 0:
           order.remove_item(item)
+    
     self.deliver()
 
   def drop_items(self, items:list) -> None:
@@ -159,9 +171,11 @@ class Machine():
     print("Dropping items")
     if self.plat_full == True:
       self.deliver
+    
     for item in items:
       w = self.available_weight - item.weight 
       v = self.available_space - item.volume
+      
       if w < 0 or  v < 0:
         print("Not enough available weight or space. Preparing to deliver")
         self.deliver()
@@ -179,9 +193,11 @@ class Machine():
     self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0  # grams of weight added onto the platform
     min_expected_weight = 100000#sum([item.weight for item in items]) - (tol * len(items))
+    
     print("Checking weight sensor")
     print("Number of channels: ", len(channels))
     print("Added weight: {}, min_expected_weight: {}".format(added_weight, min_expected_weight))
+    
     while (added_weight < min_expected_weight):
       print("About to rotate: {}".format(channels))
       dir = ['cw' for i in range(len(channels))]
@@ -190,7 +206,9 @@ class Machine():
       self.lane_sys.rotate_n(channels, dir , speeds, num_steps)  # TODO: Replace number of rotations with experimentally measured value
       time.sleep(1)  # give items time to fall/settle
       #added_weight = self.sensor.get_grams
+    
     print("Weight successfully registered")
+    
     for item in items:
       self.items_on_plat.append(item)
 
@@ -206,10 +224,13 @@ class Machine():
     tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
     # TODO: Account for situation where items not received after a long period of time
     print("Waiting for items to be received")
+    
     while (self.sensor.difference() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
+    
     self.items_on_plat = []
+    
     print("Items received")
     return True
   
@@ -225,8 +246,10 @@ def parse_payload(payload):
   order = []
   item_info = json.loads(payload)
   order_ID = item_info['orderID']
+  
   for i in item_info['orderList']:
     order.append(Item(item_info['orderList'][i]))
+  
   return order  
 
 def on_order(client, userdata, msg):
