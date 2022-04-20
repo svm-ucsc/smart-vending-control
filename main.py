@@ -30,12 +30,14 @@ HX711_GAIN = 128
 WEIGHT_FILE = "wsens_state.pickle"  # Filename for storing/loading weight sensor calibration data
 
 # Platform stepper motor positions by row
-ROW1_POS = 20 
-ROW2_POS = 30
-ROW3_POS = 40
+ROW1_POS = 10 
+ROW2_POS = 20
+ROW3_POS = 30
 
 PLAT_STEP_SPEED = 1000              # Speed of platform stepper rotations
 LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
+
+LANE_ROTATIONS = 4                  # Number of rotations needed to dispense one item (will change)
 
 # TODO (extra functionality): Write function to adjust rotation
 # speeds based on current weight on platform and weights of items in lanes
@@ -101,7 +103,7 @@ class Machine():
     # Weight sensor initializations/loads
     self.sensor = None
 
-    # Required setup (can we put this in the object?)
+    # Required setup for pins
     GPIO.setmode(GPIO.BCM)
 
     # Create new sensor if we cannot load a file w/ the calibration data
@@ -136,7 +138,7 @@ class Machine():
     
     try:
       print("Moving the platform {} steps".format(num_rotate))
-      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, 10)
+      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, num_rotate)
     except:
       return False
     
@@ -215,8 +217,8 @@ class Machine():
     #TODO use weight sensors to determine which of the items has fallen to properly account for stuck items. *******************
     #TODO choose a number of iterations before giving up if dispensing unsuccessful
     self.sensor.set_prev_read(self.sensor.get_grams())
-    added_weight = 0  # grams of weight added onto the platform
-    min_expected_weight = 100000#sum([item.weight for item in items]) - (tol * len(items))
+    added_weight = 0                    # grams of weight added onto the platform
+    min_expected_weight = 30        #sum([item.weight for item in items]) - (tol * len(items))
     
     print("Checking weight sensor")
     print("Number of channels: ", len(channels))
@@ -224,11 +226,16 @@ class Machine():
     
     while (added_weight < min_expected_weight):
       print("About to rotate: {}".format(channels))
-      dir = ['cw' for i in range(len(channels))]
+      
+      dirs = ['cw' for i in range(len(channels))]
       speeds = [LANE_STEP_SPEED for i in range(len(channels))]
-      num_steps = [20 for i in range(len(channels))]
-      self.lane_sys.rotate_n(channels, dir , speeds, num_steps)  # TODO: Replace number of rotations with experimentally measured value
+      num_steps = [LANE_ROTATIONS for i in range(len(channels))]
+      
+      # TODO: Replace number of rotations with experimentally measured value
+      self.lane_sys.rotate_n(channels, dirs, speeds, num_steps)
+
       time.sleep(1)  # give items time to fall/settle
+      
       #added_weight = self.sensor.get_grams
     
     print("Weight successfully registered")
