@@ -98,9 +98,33 @@ class Machine():
     self.plat_full = False              # Indicates whether platform has reached max capacity
     self.plat_location = 0              # Current row location of platform
 
-    # Weight sensing initializations
-    self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
-    self.sensor.calibrate()
+    # Weight sensor initializations/loads
+    self.sensor = None
+
+    # Required setup (can we put this in the object?)
+    GPIO.setmode(GPIO.BCM)
+
+    # Create new sensor if we cannot load a file w/ the calibration data
+    if not (path.exists(WEIGHT_FILE)):
+        print("Generating weight sensor calibration...")
+        self.sensor = WeightSensor_HX711(dout=HX711_DOUT_PIN, pd_sck=HX711_SDK_PIN, gain=HX711_GAIN)
+        self.sensor.calibrate()
+        
+        pl_file = open(WEIGHT_FILE, 'ab')
+        pickle.dump(self.sensor, pl_file)
+        pl_file.close()
+    else:
+        print("Loading existing weight sensor calibration...")
+        pl_file = open(WEIGHT_FILE, 'rb')
+        self.sensor = pickle.load(pl_file)
+
+        # In order to make sure that the loaded state is usable, we need to setup the
+        # GPIO pins for the sensor before continuing
+        GPIO.setup(self.sensor.PD_SCK, GPIO.OUT)
+        GPIO.setup(self.sensor.DOUT, GPIO.IN)
+
+        pl_file.close()
+ 
   
   def move_platform(self, row) -> bool:
     """Controls motor to move platform to desired row"""
@@ -317,4 +341,7 @@ client.message_callback_add(CLIENT_ID+"/order/vend", on_order)
 # handles reconnecting.
 # Other loop*() functions are available that give a threaded interface and a
 # manual interface.
-client.loop_forever()
+try:
+  client.loop_forever()
+except KeyboardInterrupt:
+  GPIO.cleanup()
