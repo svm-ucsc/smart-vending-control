@@ -1,9 +1,15 @@
 import paho.mqtt.client as mqtt
 import json
+
+import os.path
+from os import path
+import RPi.GPIO as GPIO
+import pickle
+
+import time 
 import movement.lane_stepper.build.ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
-import time 
 
 CLIENT_ID = "pi1"                   # Identifier for machine
 
@@ -21,6 +27,7 @@ PLAT_CHANNEL = 0                    # Motor hat channel of platform stepper moto
 HX711_DOUT_PIN = 17                 # dout GPIO pin of HX711 
 HX711_SDK_PIN = 18                  # sdk GPIO pin of HX711 
 HX711_GAIN = 128
+WEIGHT_FILE = "wsens_state.pickle"  # Filename for storing/loading weight sensor calibration data
 
 # Platform stepper motor positions by row
 ROW1_POS = 20 
@@ -84,10 +91,10 @@ class Machine():
     # Platform initializations
     self.items_on_plat = []
     self.plat_stepper = PlatformStepper(PLAT_CHANNEL)
-    self.plat_vol = max_plat_vol       # maximum item volume capacity of platform
-    self.plat_weight = max_weight  # maximum weight capacity of platform
-    self.plat_full = False         # indicates whether platform has reached max capacity
-    self.plat_location = 0         # current row location of platform
+    self.plat_vol = max_plat_vol        # Maximum item volume capacity of platform
+    self.plat_weight = max_weight       # Maximum weight capacity of platform
+    self.plat_full = False              # Indicates whether platform has reached max capacity
+    self.plat_location = 0              # Current row location of platform
 
     # weight sensing initializations
     self.sensor = WeightSensor_HX711(HX711_DOUT_PIN, HX711_SDK_PIN, HX711_GAIN)
