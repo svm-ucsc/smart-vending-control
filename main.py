@@ -165,7 +165,7 @@ class Machine():
     
     return self.plat_weight - used_weight
 
-  def dispense(self, order:Order) -> None:
+  def dispense(self, order:Order) -> bool:
     next_items = []
     
     while(len(order.items) > 0):
@@ -195,8 +195,9 @@ class Machine():
           order.remove_item(item)
     
     self.deliver()
+    return True
 
-  def drop_items(self, items:list) -> None:
+  def drop_items(self, items:list) -> bool:
     """Releases an item from its item lane onto the platform"""
     print("Dropping items")
     if self.plat_full == True:
@@ -248,6 +249,8 @@ class Machine():
     
     for item in items:
       self.items_on_plat.append(item)
+    
+    return True
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
@@ -255,6 +258,7 @@ class Machine():
     self.plat_stepper.reset_position()
     self.ItemsReceived()
     self.plat_full == False
+    return
 
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
@@ -303,9 +307,9 @@ def on_order(client, userdata, msg):
     machine = Machine()
     order = Order(order_id, parse_payload(msg.payload))
     print("Items in order: {}".format(order.items))
-    machine.dispense(order)
-
-    vend_successful = True
+    vend_successful = machine.dispense(order)
+    
+    # publish success message
     if(vend_successful): 
         client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
 
@@ -317,15 +321,6 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(CLIENT_ID+"/order/vend")
     connectStatus = "READY"
     client.publish(CLIENT_ID+"/status", payload=json.dumps({"status": connectStatus}), qos=2)
-
-# The callback for when a PUBLISH message is received from the server.
-def on_message(client, userdata, msg):
-  """Processes and dispenses order. Returns success or failure message upon completion
-  Published message consists of UUID for order and indication of success or failure
-  """
-  print(msg.topic+" "+str(msg.payload))
-  
-  # publish success or failure message here ***
  
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
@@ -333,10 +328,6 @@ def on_message(client, userdata, msg):
     Published message consists of UUID for order and indication of success or failure
     """
     print(msg.topic+" "+str(msg.payload))
-    machine = Machine()
-    order = Order(parse_payload(msg.payload))
-    machine.dispense(order)
-    # publish success or failure message here ***
 
 
 client = mqtt.Client(client_id=CLIENT_ID,clean_session=False)
