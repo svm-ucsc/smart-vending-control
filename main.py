@@ -5,41 +5,52 @@ from movement.platform_stepper import *
 from weight_sensor import *
 import time 
 
-CLIENT_ID = "pi1"
+CLIENT_ID = "pi1"                   # Identifier for machine
 
-NUM_ROWS = 4  # number of rows in machine
-NUM_COLS = 3  # number of columns in machine
-BASE_WEIGHT = 0  # weight of inner platform on senors
-MAX_WEIGHT = 14000  # maximum weight in grams of order that can be handled at one time
-MAX_PLAT_VOL = 20    # total volume of available space on the platform
-SUCCESS = True  # indicates if order handled successfully
-PLAT_CHANNEL = 0  # motor hat channel of platform stepper motor
-HX711_DOUT_PIN = 17  # dout GPIO pin of HX711 
-HX711_SDK_PIN = 18  # sdk GPIO pin of HX711 
+NUM_ROWS = 4                        # Number of rows in machine
+NUM_COLS = 3                        # Number of columns in machine
+
+BASE_WEIGHT = 0                     # Weight of inner platform on senors
+MAX_WEIGHT = 14000                  # Max weight (grams) of order that can be handled at one time
+MAX_PLAT_VOL = 20                   # Total volume of available space on the platform
+
+SUCCESS = True                      # Indicates if order handled successfully
+
+PLAT_CHANNEL = 0                    # Motor hat channel of platform stepper motor
+
+HX711_DOUT_PIN = 17                 # dout GPIO pin of HX711 
+HX711_SDK_PIN = 18                  # sdk GPIO pin of HX711 
 HX711_GAIN = 128
- # platform stepper motor positions by row
+
+# Platform stepper motor positions by row
 ROW1_POS = 20 
 ROW2_POS = 30
 ROW3_POS = 40
-PLAT_STEP_SPEED = 1000  # speed of platform stepper rotations
-LANE_STEP_SPEED = 1  # speed of lane stepper rotations
+
+PLAT_STEP_SPEED = 1000              # Speed of platform stepper rotations
+LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
+
 # TODO (extra functionality): Write function to adjust rotation
 # speeds based on current weight on platform and weights of items in lanes
 
+
+# Holds all of the information related to an item that is ordered
 class Item(): 
   def __init__(self, info:dict):
-    self.quantity = info['quantity']  # amount to be dispensed
-    self.weight = info['weight']      # weight of one unit
-    self.volume = info['volume']      # volume of one unit
+    self.quantity = info['quantity']  # Amount to be dispensed
+    self.weight = info['weight']      # Weight of one unit
+    self.volume = info['volume']      # Volume of one unit
     self.row = info['row']
     self.column = info['column']
-    self.channel = 1#(info['row']*3)-(3-info['column'])
+    self.channel = 1                  #(info['row']*3)-(3-info['column'])
 
   def decrement(self):
     """Decrement item quantity and return new value"""
     self.quantity = self.quantity - 1
     return self.quantity
 
+
+# Holds all of the information needed to process an order (i.e. a set of items to dispense)
 class Order():
   def __init__(self, ID, items:list):
     self.ID = ID
@@ -62,6 +73,9 @@ class Order():
   def remove_item(self, item:Item):
     self.items.remove(item)
 
+
+# Wrapper class that brings together all of the hardware modules (motors, sensors) and is used
+# to respond to the orders that are brought in from the backend
 class Machine():
   def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
     # Lane initializations
@@ -195,7 +209,8 @@ class Machine():
   def item_stuck(item, channel):
     """Handles stuck item situation"""
     pass
-   
+
+
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
   Returns a list of item objects.
@@ -205,8 +220,7 @@ def parse_payload(payload):
   order_ID = item_info['orderID']
   for i in item_info['orderList']:
     order.append(Item(item_info['orderList'][i]))
-  return order
-  
+  return order  
 
 def on_order(client, userdata, msg):
 
@@ -256,6 +270,7 @@ def on_message(client, userdata, msg):
     order = Order(parse_payload(msg.payload))
     machine.dispense(order)
     # publish success or failure message here ***
+
 
 client = mqtt.Client(client_id=CLIENT_ID,clean_session=False)
 client.username_pw_set("lenatest", "password")
