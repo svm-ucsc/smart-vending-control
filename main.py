@@ -190,6 +190,7 @@ class Machine():
       # Update order
       for item in next_items:
         print("Updating order")
+        item.decrement()
         if item.quantity == 0:
           order.remove_item(item)
     
