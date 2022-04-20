@@ -126,6 +126,9 @@ class Machine():
         GPIO.setup(self.sensor.DOUT, GPIO.IN)
 
         pl_file.close()
+
+    print("Resetting platform position...")
+    self.plat_stepper.reset_position()
  
   
   def move_platform(self, row) -> bool:
