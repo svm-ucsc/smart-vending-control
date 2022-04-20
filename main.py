@@ -236,7 +236,7 @@ class Machine():
 
       time.sleep(1)  # give items time to fall/settle
       
-      #added_weight = self.sensor.get_grams
+      added_weight = self.sensor.get_grams()
     
     print("Weight successfully registered")
     
