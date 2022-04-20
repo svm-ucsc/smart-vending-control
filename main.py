@@ -252,7 +252,7 @@ class Machine():
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
     print("Resetting platform to deliver items")
-    self.platform_stepper.reset_position()
+    self.plat_stepper.reset_position()
     self.ItemsReceived()
     self.plat_full == False
 
