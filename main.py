@@ -279,6 +279,8 @@ class Machine():
     """Handles stuck item situation"""
     pass
 
+# Define global machine object
+MACHINE = Machine()
 
 def parse_payload(payload):
   """Reads JSON payload and organizes information in Item dataclass.
@@ -304,10 +306,9 @@ def on_order(client, userdata, msg):
         "order_id": order_id,
     }
     
-    machine = Machine()
     order = Order(order_id, parse_payload(msg.payload))
     print("Items in order: {}".format(order.items))
-    vend_successful = machine.dispense(order)
+    vend_successful = MACHINE.dispense(order)
     
     # publish success message
     if(vend_successful): 
