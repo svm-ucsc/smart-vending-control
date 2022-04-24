@@ -11,7 +11,7 @@ from movement.lane_stepper import *
 
 class WeightSensor_HX711:
 
-    def __init__(self, dout, pd_sck, gain=128):
+    def __init__(self, dout, pd_sck, gain=128, MAX_CAP=100, MIN_CAP=0):
         """
         Set GPIO Mode, and pin for communication with HX711
         :param dout: Serial Data Output pin
@@ -21,6 +21,8 @@ class WeightSensor_HX711:
         self.GAIN = 0
         self.OFFSET = 0
         self.SCALE = 1
+        self.MAX_CAP = MAX_CAP
+        self.MIN_CAP = MIN_CAP
 
         self.prev_read = 0         # Holds a previous read value for comparison
 
@@ -160,8 +162,14 @@ class WeightSensor_HX711:
         slower runtime speed.        
         :return float weight in grams
         """
-        value = (self.read_average(times) - self.OFFSET)
-        grams = (value / self.SCALE)
+        sum = 0
+        for i in range(times):
+            val = (self.read()-self.OFFSET)/self.SCALE
+            # Account for extreme outliers 
+            val = self.MIN_CAP if val < self.MIN_CAP else val
+            val = self.MAX_CAP if val > self.MAX_CAP else val
+            sum += val
+        grams = sum / times
         return grams
 
     def calibrate(self):
