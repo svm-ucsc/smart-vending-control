@@ -97,6 +97,16 @@ class PlatformStepper:
 
             exit(1)
 
+    # Move the motor in a smooth motion such that platform may go from fast to slow as it
+    # approaches its destination
+    #
+    # Parameters:
+    # -direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
+    # -init_speed: determines the initial speed at which the motor begins moving
+    # -rotations: number of rotations to undertake
+    def rotate_ease(self, direction:str, init_speed:int, rotations:float):
+        pass
+
     # Resets the position of the stepper motor back to the currently-defined zero position
     def reset_position(self):
         if self.position > 0:
