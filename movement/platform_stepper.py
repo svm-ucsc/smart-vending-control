@@ -120,7 +120,11 @@ class PlatformStepper:
             for i in range(step_count):
                 self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 self.position = self.position + (1 if direction == 'cw' else -1)
+                
                 time.sleep(step_sleep)
+                #print("Current step_sleep:", step_sleep) 
+                
+                step_sleep = step_sleep * 1.01
             
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
