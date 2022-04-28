@@ -39,8 +39,9 @@ LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
 
 LANE_ROTATIONS = 4                  # Number of rotations needed to dispense one item (will change)
 
-# TODO (extra functionality): Write function to adjust rotation
-# speeds based on current weight on platform and weights of items in lanes
+MOTOR_CHANNELS = [[0, 1, 2]
+                  [3, 4, 5]
+                  [6, 7, 8]]
 
 
 # Holds all of the information related to an item that is ordered
@@ -51,16 +52,29 @@ class Item():
     self.volume = info['volume']      # Volume of one unit
     self.row = info['row']
     self.column = info['column']
-    self.channel = 1                  #(info['row']*3)-(3-info['column'])
+    self.channel = MOTOR_CHANNELS[self.row][self.column]
 
   def decrement(self):
     """Decrement item quantity and return new value"""
     self.quantity = self.quantity - 1
     return self.quantity
 
+  def get_lane_speed(self):
+    """
+    Determines the rotation speed of the item lane stepper motors based on the weight of the items
+    held.
+    """
+    pass
+  
+  def get_lane_rotations(self):
+    """
+    Determines the expected number of rotations to drop one item given the volume of the item.
+    """
+    pass
 
-# Holds all of the information needed to process an order (i.e. a set of items to dispense)
+
 class Order():
+  """Holds the information associated with an order (i.e. the list of items to dispense)"""
   def __init__(self, ID, items:list):
     
     def schedule_order(order):
@@ -78,16 +92,18 @@ class Order():
       
       return sorted_order
     
-    self.ID = ID
-    self.items = schedule_order(items)
+    self.ID = ID 
+    self.items = schedule_order(items)  # list of sorted items to dispense
   
   def remove_item(self, item:Item):
+    """Removes an item from the list of items"""
     self.items.remove(item)
 
-
-# Wrapper class that brings together all of the hardware modules (motors, sensors) and is used
-# to respond to the orders that are brought in from the backend
 class Machine():
+  """
+  Wrapper class that brings together all of the hardware modules (motors, sensors) and is used
+  to respond to the orders that are brought in from the backend
+  """
   def __init__(self, max_plat_vol=MAX_PLAT_VOL, max_weight=MAX_WEIGHT):
     # Lane initializations
     self.lane_sys = ils.ItemLaneSystem()
@@ -151,6 +167,7 @@ class Machine():
     
   @property
   def available_space(self):
+    """Returns the available volume of the platform"""
     used_volume = 0
     for i in self.items_on_plat:
       used_volume += i.volume
@@ -159,13 +176,24 @@ class Machine():
   
   @property
   def available_weight(self):
+    """Returns the available weight of the platform"""
     used_weight = 0
     for i in self.items_on_plat:
       used_weight += i.weight
     
     return self.plat_weight - used_weight
+  
+  def adjust_platform_speed(self):
+    """
+    Adjusts the speed of rotation of the platform stepper motor based on the weight on the platform.
+    """
+    pass
 
   def dispense(self, order:Order) -> bool:
+    """Controls the main dispensing workflow. Given an order, rotate the platform and item lane motors to
+    dispense the items according to the sorted order. Updates the order object progressively. Delivers
+    the items when dispensing is complete.
+    """
     next_items = []
     
     while(len(order.items) > 0):
@@ -207,6 +235,8 @@ class Machine():
       w = self.available_weight - item.weight 
       v = self.available_space - item.volume
       
+      # TODO: Change so some items are still dispensed. Only the one that sends the weight/volume
+      # over the maximum is not dispensed.
       if w < 0 or  v < 0:
         print("Not enough available weight or space. Preparing to deliver")
         self.deliver()
