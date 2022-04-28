@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import time
+import math
 import board
 from adafruit_motor import stepper
 from adafruit_motorkit import MotorKit
@@ -122,8 +123,9 @@ class PlatformStepper:
                 self.position = self.position + (1 if direction == 'cw' else -1)
                 
                 time.sleep(step_sleep)
-                #print("Current step_sleep:", step_sleep) 
+                print("Current step_sleep:", step_sleep) 
                 
+                # Smooting equation for smoother operation
                 step_sleep = step_sleep * 1.01
             
             with open(self.pos_file, "w") as f:
@@ -195,7 +197,7 @@ def main():
     def test_motor_A_ease():
         my_stepper = PlatformStepper(0)
         my_stepper.reset_position()
-        my_stepper.rotate_ease('cw', 10000, 3)
+        my_stepper.rotate_ease('cw', 10000, 7)
 
     # Launch the threads
     try:
