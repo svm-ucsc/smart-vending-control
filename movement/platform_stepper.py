@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import threading
 import time
 import board
 from adafruit_motor import stepper
@@ -105,7 +104,32 @@ class PlatformStepper:
     # -init_speed: determines the initial speed at which the motor begins moving
     # -rotations: number of rotations to undertake
     def rotate_ease(self, direction:str, init_speed:int, rotations:float):
-        pass
+        step_sleep = 1 / init_speed
+        step_count = (int) (rotations * DOUBLE_STEP)
+        dir_mode = None
+
+        if direction == 'cw':
+            dir_mode = stepper.FORWARD
+        elif direction == 'ccw':
+            dir_mode = stepper.BACKWARD
+        else:
+            print("Unexpected direction--should be \'cw\' or \'ccw\'")
+            exit(1)
+
+        try:
+            for i in range(step_count):
+                self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
+                self.position = self.position + (1 if direction == 'cw' else -1)
+                time.sleep(step_sleep)
+            
+            with open(self.pos_file, "w") as f:
+                f.write(str(self.position))
+
+        except (KeyboardInterrupt, SystemExit):
+            with open(self.pos_file, "w") as f:
+                f.write(str(self.position))
+
+            exit(1)
 
     # Resets the position of the stepper motor back to the currently-defined zero position
     def reset_position(self):
@@ -133,7 +157,8 @@ class PlatformStepper:
             f.write(str(self.position))
 
 def main():
-	# Define two functions to test out the motors simultaneously
+	# Standard test to ensure that movement and reset is tracked appropriately
+    # across different actions
     def test_motor_A():
         my_stepperA = PlatformStepper(0)
 
@@ -161,21 +186,17 @@ def main():
         my_stepperA.reset_position()
         print("Position after 3rd reset:", my_stepperA.get_position())
     
-    def test_motor_B():
-        my_stepperB = PlatformStepper(1)
-        my_stepperB.rotate('cw', 10000, 3)
-        my_stepperB.rotate('ccw', 500, 3)
-        my_stepperB.rotate('cw', 100, HALF_TURN)
-
-    # Define two threads w/ each function listed above
-    #thread_A = threading.Thread(target=test_motor_A)
-    #thread_B = threading.Thread(target=test_motor_B)
+    # Test for checking whether the platform stepper can ease to a stop rather than simply
+    # stop immediately
+    def test_motor_A_ease():
+        my_stepper = PlatformStepper(0)
+        my_stepper.reset_position()
+        my_stepper.rotate_ease('cw', 10000, 3)
 
     # Launch the threads
     try:
-        test_motor_A()
-        #thread_A.start()
-        #thread_B.start()
+        #test_motor_A()
+        test_motor_A_ease()
     except:
         print("Unable to start a new thread.")
 
