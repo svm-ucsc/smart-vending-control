@@ -11,7 +11,7 @@ from movement.lane_stepper import *
 
 class WeightSensor_HX711:
 
-    def __init__(self, dout, pd_sck, gain=128, MAX_CAP=100, MIN_CAP=0):
+    def __init__(self, dout, pd_sck, gain=128, MAX_CAP=500, MIN_CAP=-10):
         """
         Set GPIO Mode, and pin for communication with HX711
         :param dout: Serial Data Output pin
@@ -23,6 +23,7 @@ class WeightSensor_HX711:
         self.SCALE = 1
         self.MAX_CAP = MAX_CAP
         self.MIN_CAP = MIN_CAP
+        self.scale_ready = False
 
         self.prev_read = 0         # Holds a previous read value for comparison
 
@@ -40,20 +41,24 @@ class WeightSensor_HX711:
         GPIO.setup(self.DOUT, GPIO.IN)
 
         # Power up the chip
-        self.power_up()
+        #self.power_up()
         self.set_gain(gain)
+        time.sleep(1)
+
+    def is_ready(self):
+        return GPIO.input(self.DOUT) == 0
 
     def set_gain(self, gain=128):
 
         try:
             if gain == 128:
-                self.GAIN = 3
-            elif gain == 64:
-                self.GAIN = 2
-            elif gain == 32:
                 self.GAIN = 1
+            elif gain == 64:
+                self.GAIN = 3
+            elif gain == 32:
+                self.GAIN = 2
         except:
-            self.GAIN = 3  # Sets default GAIN at 128
+            self.GAIN = 1  # Sets default GAIN at 128
 
         GPIO.output(self.PD_SCK, False)
         self.read()
@@ -91,39 +96,57 @@ class WeightSensor_HX711:
         """
         return self.OFFSET
 
+    def read_bit(self):
+        GPIO.output(self.PD_SCK, True)
+        GPIO.output(self.PD_SCK, False)
+        return int(GPIO.input(self.DOUT))
+
     def read(self):
         """
         Read data from the HX711 chip
         :param void
         :return reading from the HX711
         """
+        byte_vals = []
+        while not self.is_ready():
+            pass
 
-        # Original C source code ported to Python as described in datasheet
-        # https://cdn.sparkfun.com/datasheets/Sensors/ForceFlex/hx711_english.pdf
-        # Output from python matched the output of
-        # different HX711 Arduino library example
-        # Lastly, behaviour matches while applying pressure
-        # Please see page 8 of the PDF document
+        for i in range(3):
+            count = 0
+            for ii in range(8):
+                count <<= 1
+                #count >>=1
+                count |= self.read_bit() #* 0x80
+                #count |= int(GPIO.input(self.DOUT))*0x80
+            byte_vals.append(count)
 
-        count = 0
-
-        for i in range(24):
-            GPIO.output(self.PD_SCK, True)
-            count = count << 1
-            GPIO.output(self.PD_SCK, False)
-            if(GPIO.input(self.DOUT)):
-                count += 1
-
-        GPIO.output(self.PD_SCK, True)
-        count = count ^ 0x800000
-        GPIO.output(self.PD_SCK, False)
-
-        # set channel and gain factor for next reading
         for i in range(self.GAIN):
             GPIO.output(self.PD_SCK, True)
             GPIO.output(self.PD_SCK, False)
 
-        return count
+        value = ((byte_vals[0] << 16) | (byte_vals[1] << 8) | byte_vals[2])
+        #value = ((byte_vals[2] << 16) | (byte_vals[1]) << 8 | (byte_vals[0]))
+        value = -(value & 0x800000) + (value & 0x7fffff)
+        return int(value)
+
+    def is_ready(self):
+        return GPIO.input(self.DOUT) == 0
+
+    def warmup(self, minutes=3):
+        print("time:{}".format(minutes*60))
+        # wait until sensors are ready
+        while (not self.is_ready()):
+            pass
+        start = time.time()
+        print(start)
+        elapsed = 0
+        while (elapsed < (start + (minutes*60))):
+            while (not self.is_ready()):
+                pass
+            value = self.read()
+            print(value)
+            elapsed = time.time()-start
+            #print("elapsed time: {}".format(elapsed))
 
     def read_average(self, times=16):
         """
@@ -155,7 +178,7 @@ class WeightSensor_HX711:
         current = self.get_grams()
         return current - self.get_offset()
 
-    def get_grams(self, times=16):
+    def get_grams(self, num_samples=16):
         """
         :param times: Set value to calculate average, 
         be aware that high number of times will have a 
@@ -163,28 +186,38 @@ class WeightSensor_HX711:
         :return float weight in grams
         """
         sum = 0
-        for i in range(times):
+        for i in range(num_samples):
             val = (self.read()-self.OFFSET)/self.SCALE
-            # Account for extreme outliers 
+            # Account for extreme outliers
             val = self.MIN_CAP if val < self.MIN_CAP else val
             val = self.MAX_CAP if val > self.MAX_CAP else val
             sum += val
-        grams = sum / times
+        grams = sum/num_samples
         return grams
+
+    def calc_offset(self, num_samples=16):
+        readings = []
+        time.sleep(2)
+        for i in range(num_samples):
+            readings.append(self.read_average())
+            time.sleep(1)
+
+        print("length before removal: {}".format(len(readings)))
+        readings.remove(min(readings))
+        print("length after remove min: {}".format(len(readings)))
+        readings.remove(max(readings))
+        print("length after remove mac: {}".format(len(readings)))
+        offset = sum(readings)/(num_samples-2)
+        return offset
 
     def calibrate(self):
         """
         Tare functionality for calibration
         :param times: set value to calculate average
         """
-        print("Initializing.\n Please ensure that the platform is empty.")
-        scale_ready = False
-        while not scale_ready:
-            if (GPIO.input(self.DOUT) == 0):
-                scale_ready = False
-            if (GPIO.input(self.DOUT) == 1):
-                print("Initialization complete!")
-                scale_ready = True
+        print("Initializing.\n Please ensure that the platform is empty and on a stable surface.")
+        while not self.is_ready():
+            pass
         readyCheck = input("Remove any items from platform. Press any key when ready.")
         offset = self.read_average()
         print("Value at zero (offset): {}".format(offset))
@@ -192,6 +225,7 @@ class WeightSensor_HX711:
         print("Please place an item of known weight on the scale.")
         item_weight = input("Please enter the item's weight in grams.\n>")
         measured_weight = (self.read_average()-self.get_offset())
+        print("Measured weight: ".format(measured_weight))
         scale = (measured_weight)/float(item_weight)
         self.set_scale(scale)
         print("Scale adjusted for grams: {}".format(scale))
@@ -203,9 +237,11 @@ class WeightSensor_HX711:
         """
         GPIO.output(self.PD_SCK, False)
         GPIO.output(self.PD_SCK, True)
+        time.sleep(0.0001)
 
     def power_up(self):
         """
         Power the chip up
         """
         GPIO.output(self.PD_SCK, False)
+        time.sleep(0.0001)

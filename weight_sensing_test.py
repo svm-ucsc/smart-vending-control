@@ -5,7 +5,7 @@ def test_round(num_trials:int, sensor):
     total_error_percent = 0
     for i in range(num_trials):
         item_weight = float(input("Place an item on the scale. Enter the item's known weight in grams\n>"))
-        mes_weight = sensor.get_grams()
+        mes_weight = sensor.get_grams(num_samples=1)
         print("Measured weight(grams): {}".format(mes_weight))
         dif = (mes_weight - item_weight) if (mes_weight > item_weight) else (item_weight - mes_weight)
         dif_percent = (dif/item_weight) * 100
@@ -65,8 +65,9 @@ def location_tests(num_trials:int, sensor):
 
 def main():
     my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
-    basic_tests(5, my_sensor)
-    location_tests(3, my_sensor)
+    basic_tests(3, my_sensor)
+   # my_sensor.warmup()
+    #location_tests(3, my_sensor)
     GPIO.cleanup()
 
 if __name__ == "__main__":
