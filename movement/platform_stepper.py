@@ -121,12 +121,21 @@ class PlatformStepper:
             for i in range(step_count):
                 self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 self.position = self.position + (1 if direction == 'cw' else -1)
-                
+               
+                # ii normalizes the ith step to be within the range of [0,1]
                 ii = i / step_count
-                step_sleep = (1 / init_speed) * (1000 * math.pow(ii - 0.5, 10) + 0.02325)
+                step_sleep = (1 / init_speed) * (15.5 * math.pow(ii - 0.5, 4) + 0.02325)
+                
+                # NOTE: the curve above should adjust for speed
+
+                # TODO: need to remove magic numbers
+
+                # Alternate curve
+                # step_sleep = (1 / init_speed) * \
+                #             (3 * math.pi / 20 * math.cos(2 * math.pi * ii) + (4 * math.pi / 25))
 
                 time.sleep(step_sleep)
-                print("Current step_sleep:", step_sleep) 
+                #print("Current step_sleep:", step_sleep) 
             
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
@@ -197,7 +206,7 @@ def main():
     def test_motor_A_ease():
         my_stepper = PlatformStepper(0)
         my_stepper.reset_position()
-        my_stepper.rotate_ease('cw', 100, 1)
+        my_stepper.rotate_ease('cw', 100, 3)
 
     # Launch the threads
     try:
