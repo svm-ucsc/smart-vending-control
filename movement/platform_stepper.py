@@ -122,11 +122,11 @@ class PlatformStepper:
                 self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 self.position = self.position + (1 if direction == 'cw' else -1)
                 
+                ii = i / step_count
+                step_sleep = (1 / init_speed) * (1000 * math.pow(ii - 0.5, 10) + 0.02325)
+
                 time.sleep(step_sleep)
                 print("Current step_sleep:", step_sleep) 
-                
-                # Smooting equation for smoother operation
-                step_sleep = step_sleep * 1.01
             
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
@@ -197,7 +197,7 @@ def main():
     def test_motor_A_ease():
         my_stepper = PlatformStepper(0)
         my_stepper.reset_position()
-        my_stepper.rotate_ease('cw', 10000, 7)
+        my_stepper.rotate_ease('cw', 100, 1)
 
     # Launch the threads
     try:
