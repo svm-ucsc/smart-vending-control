@@ -24,6 +24,9 @@ FULL_TURN = 1.0
 # Defines the number of steps per entire rotation using the DOUBLE_STEP mode
 DOUBLE_STEP = 200
 
+# Defines maximum speed for gliding motion
+MAX_GLIDE_SPEED = 70
+
 class PlatformStepper:
     # Perform setup and check whether the position we are loading from is correct or not relative
     # to the expected neutral position of the stepper motor
@@ -69,7 +72,13 @@ class PlatformStepper:
     # -direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
     # -speed: used to determine the stride of each step--bounded between [0, 10000]
     # -rotations: number of rotations to undertake
-    def rotate(self, direction:str, speed:int, rotations:float):
+    # -glide: forces the rotations to accelerate and decelerate gently--note that enabling
+    #         this option uses a different speed scale that is bounded by [0, 70]
+    def rotate(self, direction:str, speed:int, rotations:float, glide:bool=False):
+        if (glide) and (speed > MAX_GLIDE_SPEED):
+            print("Glide caps the speed limit to ", MAX_GLIDE_SPEED)
+            exit(1)
+
         step_sleep = 1 / speed
         step_count = (int) (rotations * DOUBLE_STEP)
         dir_mode = None
@@ -86,56 +95,13 @@ class PlatformStepper:
             for i in range(step_count):
                 self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 self.position = self.position + (1 if direction == 'cw' else -1)
-                time.sleep(step_sleep)
-            
-            with open(self.pos_file, "w") as f:
-                f.write(str(self.position))
-
-        except (KeyboardInterrupt, SystemExit):
-            with open(self.pos_file, "w") as f:
-                f.write(str(self.position))
-
-            exit(1)
-
-    # Move the motor in a smooth motion such that platform may go from fast to slow as it
-    # approaches its destination
-    #
-    # Parameters:
-    # -direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
-    # -init_speed: determines the initial speed at which the motor begins moving
-    # -rotations: number of rotations to undertake
-    def rotate_ease(self, direction:str, init_speed:int, rotations:float):
-        step_sleep = 1 / init_speed
-        step_count = (int) (rotations * DOUBLE_STEP)
-        dir_mode = None
-
-        if direction == 'cw':
-            dir_mode = stepper.FORWARD
-        elif direction == 'ccw':
-            dir_mode = stepper.BACKWARD
-        else:
-            print("Unexpected direction--should be \'cw\' or \'ccw\'")
-            exit(1)
-
-        try:
-            for i in range(step_count):
-                self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
-                self.position = self.position + (1 if direction == 'cw' else -1)
-               
-                # ii normalizes the ith step to be within the range of [0,1]
-                ii = i / step_count
-                step_sleep = (1 / init_speed) * (15.5 * math.pow(ii - 0.5, 4) + 0.02325)
                 
-                # NOTE: the curve above should adjust for speed
-
-                # TODO: need to remove magic numbers
-
-                # Alternate curve
-                # step_sleep = (1 / init_speed) * \
-                #             (3 * math.pi / 20 * math.cos(2 * math.pi * ii) + (4 * math.pi / 25))
+                # Perform motion smoothing if the glide flag is enabled
+                if glide:
+                    ii = i / step_count
+                    step_sleep = (1 / speed) * (15.5 * math.pow(ii - 0.5, 4) + 0.02325)
 
                 time.sleep(step_sleep)
-                #print("Current step_sleep:", step_sleep) 
             
             with open(self.pos_file, "w") as f:
                 f.write(str(self.position))
@@ -206,7 +172,7 @@ def main():
     def test_motor_A_ease():
         my_stepper = PlatformStepper(0)
         my_stepper.reset_position()
-        my_stepper.rotate_ease('cw', 100, 3)
+        my_stepper.rotate('cw', 70, 3, True)
 
     # Launch the threads
     try:
