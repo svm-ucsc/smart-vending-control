@@ -27,6 +27,12 @@ DOUBLE_STEP = 200
 # Defines maximum speed for gliding motion
 MAX_GLIDE_SPEED = 70
 
+# Define constants for the gliding equation for motion
+SLP_MAX = 15.5
+MIDPT = 0.5
+POWER = 4
+SLP_MIN = 0.02325
+
 class PlatformStepper:
     # Perform setup and check whether the position we are loading from is correct or not relative
     # to the expected neutral position of the stepper motor
@@ -99,7 +105,7 @@ class PlatformStepper:
                 # Perform motion smoothing if the glide flag is enabled
                 if glide:
                     ii = i / step_count
-                    step_sleep = (1 / speed) * (15.5 * math.pow(ii - 0.5, 4) + 0.02325)
+                    step_sleep = (1 / speed) * (SLP_MAX * math.pow(ii - MIDPT, POWER) + SLP_MIN)
 
                 time.sleep(step_sleep)
             
