@@ -172,20 +172,19 @@ def main():
         my_stepperA.rotate('ccw', 400, 2.5)
         my_stepperA.reset_position()
         print("Position after 3rd reset:", my_stepperA.get_position())
-    
-    # Test for checking whether the platform stepper can ease to a stop rather than simply
-    # stop immediately
-    def test_motor_A_ease():
-        my_stepper = PlatformStepper(0)
-        my_stepper.reset_position()
-        my_stepper.rotate('cw', 70, 3, True)
 
-    # Launch the threads
+        time.sleep(4)
+
+        print("Glide motion test underway...")
+        my_stepperA.rotate('ccw', 70, 4, True)
+        my_stepperA.reset_position()
+        print("Position after 4th reset:", my_stepperA.get_position())
+        
+    # Launch the test sequence
     try:
-        #test_motor_A()
-        test_motor_A_ease()
+        test_motor_A()
     except:
-        print("Unable to start a new thread.")
+        print("Test canceled.")
 
 if __name__ == '__main__':
     main()
