@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-import threading
 import time
+import math
 import board
 from adafruit_motor import stepper
 from adafruit_motorkit import MotorKit
@@ -23,6 +23,15 @@ FULL_TURN = 1.0
 
 # Defines the number of steps per entire rotation using the DOUBLE_STEP mode
 DOUBLE_STEP = 200
+
+# Defines maximum speed for gliding motion
+MAX_GLIDE_SPEED = 70
+
+# Define constants for the gliding equation for motion
+SLP_MAX = 15.5
+MIDPT = 0.5
+POWER = 4
+SLP_MIN = 0.02325
 
 class PlatformStepper:
     # Perform setup and check whether the position we are loading from is correct or not relative
@@ -69,7 +78,13 @@ class PlatformStepper:
     # -direction: 'cw' for clockwise or 'ccw' for counterclockwise movement
     # -speed: used to determine the stride of each step--bounded between [0, 10000]
     # -rotations: number of rotations to undertake
-    def rotate(self, direction:str, speed:int, rotations:float):
+    # -glide: forces the rotations to accelerate and decelerate gently--note that enabling
+    #         this option uses a different speed scale that is bounded by [0, 70]
+    def rotate(self, direction:str, speed:int, rotations:float, glide:bool=False):
+        if (glide) and (speed > MAX_GLIDE_SPEED):
+            print("Glide caps the speed limit to ", MAX_GLIDE_SPEED)
+            exit(1)
+
         step_sleep = 1 / speed
         step_count = (int) (rotations * DOUBLE_STEP)
         dir_mode = None
@@ -86,6 +101,12 @@ class PlatformStepper:
             for i in range(step_count):
                 self.step_channel.onestep(direction=dir_mode, style=stepper.DOUBLE)
                 self.position = self.position + (1 if direction == 'cw' else -1)
+                
+                # Perform motion smoothing if the glide flag is enabled
+                if glide:
+                    ii = i / step_count
+                    step_sleep = (1 / speed) * (SLP_MAX * math.pow(ii - MIDPT, POWER) + SLP_MIN)
+
                 time.sleep(step_sleep)
             
             with open(self.pos_file, "w") as f:
@@ -123,7 +144,8 @@ class PlatformStepper:
             f.write(str(self.position))
 
 def main():
-	# Define two functions to test out the motors simultaneously
+	# Standard test to ensure that movement and reset is tracked appropriately
+    # across different actions
     def test_motor_A():
         my_stepperA = PlatformStepper(0)
 
@@ -150,24 +172,19 @@ def main():
         my_stepperA.rotate('ccw', 400, 2.5)
         my_stepperA.reset_position()
         print("Position after 3rd reset:", my_stepperA.get_position())
-    
-    def test_motor_B():
-        my_stepperB = PlatformStepper(1)
-        my_stepperB.rotate('cw', 10000, 3)
-        my_stepperB.rotate('ccw', 500, 3)
-        my_stepperB.rotate('cw', 100, HALF_TURN)
 
-    # Define two threads w/ each function listed above
-    #thread_A = threading.Thread(target=test_motor_A)
-    #thread_B = threading.Thread(target=test_motor_B)
+        time.sleep(4)
 
-    # Launch the threads
+        print("Glide motion test underway...")
+        my_stepperA.rotate('ccw', 70, 4, True)
+        my_stepperA.reset_position()
+        print("Position after 4th reset:", my_stepperA.get_position())
+        
+    # Launch the test sequence
     try:
         test_motor_A()
-        #thread_A.start()
-        #thread_B.start()
     except:
-        print("Unable to start a new thread.")
+        print("Test canceled.")
 
 if __name__ == '__main__':
     main()

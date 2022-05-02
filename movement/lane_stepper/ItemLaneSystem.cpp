@@ -1,11 +1,7 @@
 /*
-   For use with the 28BYJ-48 5V stepper motors to be used in the item lane components of the machine
-
-   Specs:
-     Rated voltage: 5V
-     Tested current: 0.3A
-     Speed Var. Ratio: 1/64
-     Stride Angle: 5.625 deg. -> NOTE: 360 deg = 4096 * (5.625 / 64)
+   For use with the 12V NEMA-17 motors to be used in the item lane components of the machine--
+   this code can be used with other bipolar stepper motors but requires changes to the number of
+   steps per rotation (STEPS_PER_ROT) depending on the stride angle of the motor.
 */
 
 #include <cstdint>
@@ -28,29 +24,30 @@
 #define PIN_BASE1       (200)
 
 // Pin, step sequence, and multithreading constants
-#define PINS_PER_MCP    (16)
+#define PINS_PER_MCP    (12)
 #define PINS_PER_MOTOR  (4)
+#define MOTORS_PER_MCP  (3)
 
-#define FULL_STEP_LEN   (8)
+#define HALF_STEP_LEN   (8)
 
 #define MAX_WORKERS     (3)
 
-// Rotation constnants for determining steps needed for a full rotation
-#define STEPS_PER_ROT   (4096)
+// Rotation constants for determining steps needed for a full rotation
+#define STEPS_PER_ROT   (400)
 #define MIN_DELAY       (1)
 #define MAX_DELAY       (100)
 
 using namespace std;
 
-// Sequence of steps for full steps on a stepper motor (more granular)
-static const int FULL_SEQUENCE[FULL_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 0, 1},
-                                                                  {1, 0, 0, 0},
-                                                                  {1, 1, 0, 0},
-                                                                  {0, 1, 0, 0},
-                                                                  {0, 1, 1, 0},
+static const int HALF_SEQUENCE[HALF_STEP_LEN][PINS_PER_MOTOR] = { {1, 0, 1, 0},
                                                                   {0, 0, 1, 0},
-                                                                  {0, 0, 1, 1},
-                                                                  {0, 0, 0, 1} };
+                                                                  {0, 1, 1, 0},
+                                                                  {0, 1, 0, 0},
+                                                                  {0, 1, 0, 1},
+                                                                  {0, 0, 0, 1},
+                                                                  {1, 0, 0, 1},
+                                                                  {1, 0, 0, 0} };
+
 
 // ItemLaneStepper class designed to control a any stepper motor in an item lane
 class ItemLaneSystem {
@@ -99,7 +96,7 @@ public:
 
             // Inner loop runs through the pins in order to determine which value is placed per pin
             for(int i = 0; i < PINS_PER_MOTOR; i++) {
-                digitalWrite(base_pin + i, FULL_SEQUENCE[cur_step % FULL_STEP_LEN][i]);
+                digitalWrite(base_pin + i, HALF_SEQUENCE[cur_step % HALF_STEP_LEN][i]);
             }
 
             delay(step_sleep);
@@ -113,6 +110,15 @@ public:
 
     // Rotate a number of stepper motors using arrays sent in to each of the arguments with
     // corresponding entries belonging to different channels (up to MAX_WORKERS amount)
+    //
+    // NOTE: the machine prototype uses the following number scheme for the lanes:
+    //
+    //  [0] [3]
+    //  [1] [4]
+    //  [2] [5]
+    //
+    // Channels 0 and 3, 1 and 4, and 2 and 5 are the pairs that are able to run in parallel,
+    // so we should pick channels that have the same modulus value out of 3 to run in this manner
     //
     // Parameters:
     // - channels:   Vector of numbered channels of motors to run
@@ -150,10 +156,10 @@ private:
     thread workers[MAX_WORKERS];           // Private threads for use in running simultaneous motors
 
     // Maps sequential, positive integer channels to the appropriate base pin address for the motor
-    // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 112, 4 to 200, 5 to 204, etc.)
+    // that is at that place (i.e. 0 to 100, 1 to 104, 2 to 108, 3 to 200, 4 to 204, 5 to 208, etc.)
     int channel_to_base(int channel) {
-       return PIN_BASE0 + (PIN_BASE0 * ((int) (channel / PINS_PER_MOTOR))) +
-                ((channel % PINS_PER_MOTOR) * PINS_PER_MOTOR);
+       return PIN_BASE0 + (PIN_BASE0 * ((int) (channel / MOTORS_PER_MCP))) +
+                ((channel % MOTORS_PER_MCP) * PINS_PER_MOTOR);
     }
 
     // Converts speed into delay amount for the purposes of rotation
