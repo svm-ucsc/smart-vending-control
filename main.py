@@ -39,9 +39,11 @@ LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
 
 LANE_ROTATIONS = 4                  # Number of rotations needed to dispense one item (will change)
 
-MOTOR_CHANNELS = [[0, 1, 2]
-                  [3, 4, 5]
-                  [6, 7, 8]]
+NUM_ATTEMPTS = 2                    # Number of attempts to drop an item before giving up
+
+MOTOR_CHANNELS = [[0, 3]
+                  [1, 4]
+                  [2, 5]]
 
 
 # Holds all of the information related to an item that is ordered
@@ -212,7 +214,7 @@ class Machine():
       
       # Release order
       print("Preparing to drop items")
-      self.drop_items(next_items)
+      items_dropped = self.drop_items(next_items)
       print("Items dropped")
       
       # Update order
@@ -225,62 +227,94 @@ class Machine():
     self.deliver()
     return True
 
-  def drop_items(self, items:list) -> bool:
+  def drop_items(self, items:list):
     """Releases an item from its item lane onto the platform"""
-    print("Dropping items")
     if self.plat_full == True:
-      self.deliver
+      self.deliver()
     
+    print("Dropping items")
+    
+    tol = 0 # percent tolerance of weight difference to confirm successful item drop
+    #TODO adjust tolerance to be relative to the item's weight i.e. use percentage. 
+
+    min_expected_weight = 0  
+    w = self.available_weight
+    v = self.available_space
+    items_to_drop = []
     for item in items:
-      w = self.available_weight - item.weight 
-      v = self.available_space - item.volume
-      
-      # TODO: Change so some items are still dispensed. Only the one that sends the weight/volume
-      # over the maximum is not dispensed.
-      if w < 0 or  v < 0:
-        print("Not enough available weight or space. Preparing to deliver")
-        self.deliver()
+      w -= item.weight
+      v -= item.volume
+      if w < 0 or v < 0:
+        self.plat_full = True
+        break
       elif w == 0 or v == 0:
         self.plat_full = True
-    
-    channels = [item.channel for item in items]  # get motor channels
-    
-    tol = 1 # tolerance of weight difference in grams to confirm successful item drop
-    #TODO adjust tolerance to be relative to the item's weight i.e. use percentage. 
-    # Perhaps it should be relative only to the weight of the smallest item
-
-    #TODO use weight sensors to determine which of the items has fallen to properly account for stuck items. *******************
-    #TODO choose a number of iterations before giving up if dispensing unsuccessful
+      min_expected_weight += item.weight - (item.weight * tol)
+      items_to_drop.append(item)
+        
     self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0                    # grams of weight added onto the platform
-    min_expected_weight = 30        #sum([item.weight for item in items]) - (tol * len(items))
     
     print("Checking weight sensor")
     print("Number of channels: ", len(channels))
     print("Added weight: {}, min_expected_weight: {}".format(added_weight, min_expected_weight))
     
-    while (added_weight < min_expected_weight):
-      print("About to rotate: {}".format(channels))
-      
-      dirs = ['cw' for i in range(len(channels))]
-      speeds = [LANE_STEP_SPEED for i in range(len(channels))]
-      num_steps = [LANE_ROTATIONS for i in range(len(channels))]
-      
-      # TODO: Replace number of rotations with experimentally measured value
-      self.lane_sys.rotate_n(channels, dirs, speeds, num_steps)
-
-      time.sleep(1)  # give items time to fall/settle
-      
-      added_weight = self.sensor.get_grams()
-
-      print("Current added weight: {}".format(added_weight))
+    items_dropped = []
     
-    print("Weight successfully registered")
+    # If items are very close in weight, don't drop them at the same time
+    if (len(items_to_drop) == 2 and abs(items_to_drop[0].weight - items_to_drop[1].weight) < 10):
+      if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
+        items_dropped.append(items_to_drop[0])
+      if (self.single_item_drop(items_to_drop[1], NUM_ATTEMPTS) == True):
+        items_dropped.append(items_to_drop[1])
+
+    else:      
+      while (added_weight < min_expected_weight):
+        channels = [item.channel for item in items_to_drop]  # get motor channels
+        print("About to rotate: {}".format(channels))
+        dirs = ['cw' for i in range(len(channels))]
+        speeds = [LANE_STEP_SPEED for i in range(len(channels))]
+        num_steps = [LANE_ROTATIONS for i in range(len(channels))]
+      
+        change = 0
+        while (change == 0):
+          self.lane_sys.rotate_n(channels, dirs, speeds, num_steps)
+          time.sleep(1)  # give items time to fall/settle
+          change = self.sensor.detect_change()
+          
+        added_weight += change
+        if (added_weight > 0 and added_weight < min_expected_weight):
+          if abs(added_weight - items_to_drop[0].weight) < abs(added_weight - items_to_drop[1]):
+            stuck_item = items_to_drop[1]
+            items_dropped.append(items_to_drop[0])
+          else:
+            stuck_item = items_to_drop[0]
+            items_dropped.append(items_to_drop[1])
+          if (self.single_item_drop(stuck_item, NUM_ATTEMPTS-1) == True):
+            items_dropped.append(stuck_item)
+       
+        added_weight = self.sensor.get_grams()
+
+        print("Current added weight: {}".format(added_weight))
     
-    for item in items:
+      print("Weight successfully registered")
+    
+    for item in items_dropped:
       self.items_on_plat.append(item)
     
-    return True
+    return items_dropped
+  
+  def single_item_drop(self, item:Item, num_tries:int)->bool:
+    """Rotates a motor to drop a single item. Returns success or failure"""
+    attempts = 0
+    while (attempts < num_tries):
+      self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, LANE_ROTATIONS)
+      time.sleep(1)  # settling time
+      if (self.sensor.detect_change()):
+        return True
+      attempts += 1
+    return False
+
 
   def deliver(self):
     """Moves platform to center and waits for user to take items"""
