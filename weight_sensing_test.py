@@ -42,7 +42,7 @@ def basic_tests(num_trials:int, sensor):
     print("\tAverage measurement error(grams): {:.3f}".format(total_error/num_trials))
     print("\tAverage measurement error(percent): {:.3f}%".format(total_error_percent/num_trials))
 
-def calib_weight_vs_accuracy(num_items, num_to_avg, sensor):
+def calib_weight_vs_accuracy(sensor, num_items=5, num_to_avg=3):
     print("---------- Now Testing the Effect of Calibrating Weight on Measurement Accuracy ----------")
     
     def trial():
@@ -56,8 +56,15 @@ def calib_weight_vs_accuracy(num_items, num_to_avg, sensor):
     for i in range(num_items):
         trial()
 
-def item_weight_vs_accuracy(num_items:int, sensor):
+def item_weight_vs_accuracy(sensor, num_items=5, num_to_avg=5):
     print("---------- Now Testing the Effect of Item Weight on Measurement Accuracy ----------")  
+    print("Now starting calibration")
+    sensor.calibrate()
+    print("For each item, you will weigh the item {} times".format(num_to_avg))
+    for i in range(num_items):
+        print("Now testing with item number {}".format(i+1))
+        test_round_same_item(num_to_avg, sensor)
+
 
 def drop_height_test(sensor):
     print("---------- Now Testing the Effect of Drop Height on Measurement Accuracy ----------")  
@@ -73,19 +80,19 @@ def calibration_location_tests(num_trials:int, sensor):
     print("----Now testing calibration on left side----")
     print("Place the item on the left side during calibration!\n")
     sensor.calibrate()
-    l_error, l_percent = test_round(num_trials, sensor)
+    l_error, l_percent = test_round_dif_items(num_trials, sensor)
     
     # Center test
     print("----Now testing calibration in center----")
     print("Place the item in the center during calibration!\n")
     sensor.calibrate()
-    c_error, c_percent = test_round(num_trials, sensor)
+    c_error, c_percent = test_round_dif_items(num_trials, sensor)
 
     # Right test
     print("----Now testing calibration on right side----")
     print("Place the item on the right side during calibration!\n")
     sensor.calibrate()
-    r_error, r_percent = test_round(num_trials, sensor)
+    r_error, r_percent = test_round_dif_items(num_trials, sensor)
 
     # Display results
     print("-------Location tests complete!-------")
