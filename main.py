@@ -245,10 +245,7 @@ class Machine():
       w -= item.weight
       v -= item.volume
       if w < 0 or v < 0:
-        self.plat_full = True
         break
-      elif w == 0 or v == 0:
-        self.plat_full = True
       min_expected_weight += item.weight - (item.weight * tol)
       items_to_drop.append(item)
         
@@ -261,13 +258,18 @@ class Machine():
     
     items_dropped = []
     
+    if (len(items_to_drop) == 1):
+      if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
+        items_dropped.append(items_to_drop[0])
+
     # If items are very close in weight, don't drop them at the same time
-    if (len(items_to_drop) == 2 and abs(items_to_drop[0].weight - items_to_drop[1].weight) < 10):
+    elif (len(items_to_drop) == 2 and abs(items_to_drop[0].weight - items_to_drop[1].weight) < 10):
       if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
         items_dropped.append(items_to_drop[0])
       if (self.single_item_drop(items_to_drop[1], NUM_ATTEMPTS) == True):
         items_dropped.append(items_to_drop[1])
-
+    
+    # If items have sufficient difference in weights, drop at same time
     else:      
       while (added_weight < min_expected_weight):
         channels = [item.channel for item in items_to_drop]  # get motor channels
@@ -301,6 +303,8 @@ class Machine():
     
     for item in items_dropped:
       self.items_on_plat.append(item)
+      if (self.available_weight <= 0 or self.available_space <= 0):
+        self.plat_full = True
     
     return items_dropped
   
