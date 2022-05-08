@@ -169,10 +169,11 @@ class WeightSensor_HX711:
         """
         new_weight = self.get_grams()
         if (new_weight - self.prev_read) ** 2 > tolerance:
+            dif = new_weight - self.prev_read
             self.set_prev_read(new_weight)
-            return True
+            return dif
         else:
-            return False
+            return 0
 
     def get_grams(self, num_samples=16):
         """
@@ -245,3 +246,7 @@ class WeightSensor_HX711:
         """
         GPIO.output(self.PD_SCK, False)
         time.sleep(0.0001)
+
+    def reset(self):
+        self.power_down()
+        self.power_up()
