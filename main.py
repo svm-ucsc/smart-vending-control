@@ -54,7 +54,7 @@ class Item():
     self.volume = info['volume']      # Volume of one unit
     self.row = info['row']
     self.column = info['column']
-    self.channel = MOTOR_CHANNELS[self.row][self.column]
+    self.channel = MOTOR_CHANNELS[self.row-1][self.column-1]
 
   def decrement(self):
     """Decrement item quantity and return new value"""
@@ -249,7 +249,6 @@ class Machine():
       min_expected_weight += item.weight - (item.weight * tol)
       items_to_drop.append(item)
         
-    self.sensor.set_prev_read(self.sensor.get_grams())
     added_weight = 0                    # grams of weight added onto the platform
     
     print("Checking weight sensor")
@@ -278,6 +277,7 @@ class Machine():
         speeds = [LANE_STEP_SPEED for i in range(len(channels))]
         num_steps = [LANE_ROTATIONS for i in range(len(channels))]
       
+        self.sensor.set_prev_read(self.sensor.get_grams())
         change = 0
         while (change == 0):
           self.lane_sys.rotate_n(channels, dirs, speeds, num_steps)
@@ -285,21 +285,26 @@ class Machine():
           change = self.sensor.detect_change()
           
         added_weight += change
+        print("Initial added weight: {}".format(added_weight))
+        
+        # Handle scenario where only 1/2 items dropped successfully
         if (added_weight > 0 and added_weight < min_expected_weight):
+          # Determine which item is stuck
           if abs(added_weight - items_to_drop[0].weight) < abs(added_weight - items_to_drop[1]):
             stuck_item = items_to_drop[1]
             items_dropped.append(items_to_drop[0])
+            items_to_drop.remove(items_to_drop[0])
           else:
             stuck_item = items_to_drop[0]
             items_dropped.append(items_to_drop[1])
+            items_to_drop.remove(items_to_drop[1])
+
+          # Attempt to drop the stuck item
           if (self.single_item_drop(stuck_item, NUM_ATTEMPTS-1) == True):
             items_dropped.append(stuck_item)
-       
-        added_weight = self.sensor.get_grams()
-
-        print("Current added weight: {}".format(added_weight))
+            items_to_drop.remove(stuck_item)
     
-      print("Weight successfully registered")
+    print("Finished dropping items")
     
     for item in items_dropped:
       self.items_on_plat.append(item)
@@ -311,6 +316,7 @@ class Machine():
   def single_item_drop(self, item:Item, num_tries:int)->bool:
     """Rotates a motor to drop a single item. Returns success or failure"""
     attempts = 0
+    self.sensor.set_prev_read(self.sensor.get_grams())
     while (attempts < num_tries):
       self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, LANE_ROTATIONS)
       time.sleep(1)  # settling time
