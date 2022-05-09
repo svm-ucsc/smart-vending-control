@@ -143,13 +143,14 @@ class WeightSensor_HX711:
         while (not self.is_ready()):
             pass
         start = time.time()
-        print(start)
+        print("Now starting warmup")
         elapsed = 0
         while (elapsed < (start + (minutes*60))):
             while (not self.is_ready()):
                 pass
             value = self.read()
-            elapsed = time.time()-start
+            elapsed = time.time()
+        print("Done with warmup")
 
     def read_average(self, num_samples=16):
         """
