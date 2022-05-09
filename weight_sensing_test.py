@@ -1,4 +1,5 @@
 from weight_sensor import *
+from movement import platform_stepper as ps
 
 def test_round_dif_items(num_trials:int, sensor):
     total_error = 0
@@ -68,6 +69,23 @@ def item_weight_vs_accuracy(sensor, num_items=5, num_to_avg=5):
 
 def drop_height_test(sensor):
     print("---------- Now Testing the Effect of Drop Height on Measurement Accuracy ----------")  
+
+def effect_of_movement(sensor):
+    print("---------- Now Testing the Effect of Movement on Measurement Accuracy ----------")
+    plat = ps.PlatformStepper(0)
+    plat.reset_position()
+    sensor.calibrate()
+
+    print("--- Now performing baseline tests(no movement)")
+    test_round_same_item(3, sensor)
+
+    print("--- Now performing test after moving up")
+    plat.rotate('ccw', 300, 8, False)
+    test_round_same_item(3, sensor)
+
+    print("--- Now performing test after moving down")
+    plat.rotate('cw', 300, 8, False)
+    test_round_same_item(3, sensor)
 
 def calibration_location_tests(num_trials:int, sensor):
     print("---------- Now starting location tests ----------")
