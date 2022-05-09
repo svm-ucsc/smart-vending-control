@@ -43,6 +43,23 @@ def basic_tests(num_trials:int, sensor):
     print("\tAverage measurement error(grams): {:.3f}".format(total_error/num_trials))
     print("\tAverage measurement error(percent): {:.3f}%".format(total_error_percent/num_trials))
 
+def test_dif_num_avg(sensor):
+    print("---------- Now Testing the Effect of the Amount of Averaging on Accuracy ----------")
+    num_samples = [4, 8, 16, 32, 64]
+    print("Testing the following amounts of samples: {}".format(num_samples))
+    sensor.calibrate()
+    item_weight = float(input("Please enter the expected weight of the item in grams: \n>"))
+    for n in num_samples:
+        print("------- Testing with {} samples".format(n))
+        mes_weight = sensor.get_grams(num_samples=16)
+        print("Measured weight(grams): {}".format(mes_weight))
+        dif = (mes_weight - item_weight) if (mes_weight > item_weight) else (item_weight - mes_weight)
+        dif_percent = (dif/item_weight) * 100
+        total_error_percent += dif_percent
+        total_error += dif
+        print("Difference between actual and measured weights: {:.3f}, {:.3f}%".format(dif, dif_percent))
+
+
 def calib_weight_vs_accuracy(sensor, num_items=5, num_to_avg=3):
     print("---------- Now Testing the Effect of Calibrating Weight on Measurement Accuracy ----------")
     
