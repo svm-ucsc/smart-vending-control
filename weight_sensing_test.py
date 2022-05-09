@@ -19,7 +19,7 @@ def test_round_same_item(num_trials:int, sensor):
     total_error = 0
     total_error_percent = 0
     print("Now starting a round of tests for one item")
-    item_weight = input("Please enter the expected weight of the item in grams: \n>")
+    item_weight = float(input("Please enter the expected weight of the item in grams: \n>"))
     for i in range(num_trials):
         mes_weight = sensor.get_grams(num_samples=16)
         print("Measured weight(grams): {}".format(mes_weight))
@@ -65,6 +65,24 @@ def item_weight_vs_accuracy(sensor, num_items=5, num_to_avg=5):
     for i in range(num_items):
         print("Now testing with item number {}".format(i+1))
         test_round_same_item(num_to_avg, sensor)
+
+def test_warmup(sensor, num_trials:int=10):
+    print("---------- Now Testing the Effect of a Warmup Period on Accuracy ----------")
+    print("---Now testing accuracy without warmup")
+    sensor.calibrate()
+    test_round_same_item(num_trials, sensor)
+
+    print("--- Now testing with 2 minute warmup period BEFORE calibration")
+    sensor.reset()
+    sensor.warmup(minutes=2)
+    sensor.calibrate()
+    test_round_same_item(num_trials, sensor)
+
+    print("--- Now testing with 2 minute warmup period AFTER calibration")
+    sensor.reset()
+    sensor.calibrate()
+    sensor.warmup(minutes=2)
+    test_round_same_item(num_trials, sensor)
 
 
 def drop_height_test(sensor):
