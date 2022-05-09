@@ -48,16 +48,18 @@ def test_dif_num_avg(sensor):
     num_samples = [4, 8, 16, 32, 64]
     print("Testing the following amounts of samples: {}".format(num_samples))
     sensor.calibrate()
+    sensor.warmup()
     item_weight = float(input("Please enter the expected weight of the item in grams: \n>"))
     for n in num_samples:
         print("------- Testing with {} samples".format(n))
-        mes_weight = sensor.get_grams(num_samples=16)
-        print("Measured weight(grams): {}".format(mes_weight))
-        dif = (mes_weight - item_weight) if (mes_weight > item_weight) else (item_weight - mes_weight)
-        dif_percent = (dif/item_weight) * 100
-        total_error_percent += dif_percent
-        total_error += dif
-        print("Difference between actual and measured weights: {:.3f}, {:.3f}%".format(dif, dif_percent))
+        for i in range(10):
+            mes_weight = sensor.get_grams(num_samples=16)
+            print("Measured weight(grams): {}".format(mes_weight))
+            dif = (mes_weight - item_weight) if (mes_weight > item_weight) else (item_weight - mes_weight)
+            dif_percent = (dif/item_weight) * 100
+            total_error_percent += dif_percent
+            total_error += dif
+            print("Difference between actual and measured weights: {:.3f}, {:.3f}%".format(dif, dif_percent))
 
 
 def calib_weight_vs_accuracy(sensor, num_items=5, num_to_avg=3):

@@ -11,7 +11,7 @@ from movement.lane_stepper import *
 
 class WeightSensor_HX711:
 
-    def __init__(self, dout, pd_sck, gain=128, MAX_CAP=500, MIN_CAP=-10):
+    def __init__(self, dout, pd_sck, gain=128, MAX_CAP=100, MIN_CAP=0):
         """
         Set GPIO Mode, and pin for communication with HX711
         :param dout: Serial Data Output pin
@@ -152,7 +152,7 @@ class WeightSensor_HX711:
             elapsed = time.time()
         print("Done with warmup")
 
-    def read_average(self, num_samples=16):
+    def read_average(self, num_samples=8):
         """
         Calculate average value from
         :param times: measure x amount of time to get average
@@ -184,13 +184,14 @@ class WeightSensor_HX711:
         :return float weight in grams
         """
         sum = 0
+        samples = 0
         for i in range(num_samples):
             val = (self.read()-self.OFFSET)/self.SCALE
             # Account for extreme outliers
-            val = self.MIN_CAP if val < self.MIN_CAP else val
-            val = self.MAX_CAP if val > self.MAX_CAP else val
-            sum += val
-        grams = sum/num_samples
+            if (val > self.MIN_CAP and val < self.MAX_CAP):
+                samples += 1
+                sum += val
+        grams = sum/samples if samples > 0 else -1
         return grams
 
     def calc_offset(self, num_samples=16):
@@ -206,7 +207,9 @@ class WeightSensor_HX711:
 
         print("length before removal: {}".format(len(readings)))
         readings.remove(min(readings))
+        readings.remove(min(readings))
         print("length after remove min: {}".format(len(readings)))
+        readings.remove(max(readings))
         readings.remove(max(readings))
         print("length after remove mac: {}".format(len(readings)))
         offset = sum(readings)/(num_samples-2)
@@ -221,7 +224,7 @@ class WeightSensor_HX711:
         while not self.is_ready():
             pass
         readyCheck = input("Remove any items from platform. Press any key when ready.")
-        offset = self.read_average(num_samples)
+        offset = self.calc_offset(num_samples)
         print("Value at zero (offset): {}".format(offset))
         self.set_offset(offset)
         print("Please place an item of known weight on the scale.")
