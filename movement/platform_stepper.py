@@ -179,10 +179,60 @@ def main():
         my_stepperA.rotate('ccw', 70, 4, True)
         my_stepperA.reset_position()
         print("Position after 4th reset:", my_stepperA.get_position())
+
+    # In-machine test that calibrates the home position of the machine and
+    # then uses both modes of the machine to check whether the lanes can be
+    # reached.
+    #
+    # NOTE: CCW is used to move the platform up/CW is used for moving down
+    def machine_motor_test():
+        s = PlatformStepper(0)
+
+        start_rot = 6.0                         # Number of rotations to go to home on cold boot
+        lane_rot = 5.8                          # Number of rotations between item lanes
         
+        eas_spd = 35                            # Best speed for eased motion
+        lin_spd = 500                           # Best speed for linear motion
+
+        # Startup test (assumed to be run when the machine is cold booted)
+        # s.rotate('ccw', 500, start_rot)
+        # s.zero_position()
+        
+        # Reset position
+        print("Resetting position to home row...")
+        s.reset_position()
+        print("Reset complete.")
+        time.sleep(1)
+
+        # Ease motion test
+        print("Beginning ease motion test...")
+        s.rotate('cw', eas_spd, lane_rot, True)
+        time.sleep(2)
+        s.rotate('ccw', eas_spd, 3 * lane_rot, True)
+        time.sleep(2)
+        s.rotate('cw', eas_spd, lane_rot, True)
+        time.sleep(2)
+        
+        s.reset_position()
+        print("Ease motion test complete.")
+        time.sleep(4)
+
+        # Standard motion test
+        print("Beginning linear motion test...")
+        s.rotate('cw', lin_spd, lane_rot)
+        time.sleep(2)
+        s.rotate('ccw', lin_spd, 3 * lane_rot)
+        time.sleep(2)
+        s.rotate('cw', lin_spd, lane_rot)
+        time.sleep(2)
+        
+        s.reset_position()
+        print("Linear motion test complete.")
+
+
     # Launch the test sequence
     try:
-        test_motor_A()
+        machine_motor_test()
     except:
         print("Test canceled.")
 
