@@ -47,6 +47,15 @@ def main():
 	# Cleanup
 	sys.zero_all_pins()
 
+def continuous_plat_test():
+    plat_0 = ps.PlatformStepper(0)
+    try:
+    	while(True):
+            dir = input("What direction?: ")
+            num_rotations = int(input("How many rotations?: "))
+            plat_0.rotate(dir, 300, num_rotations)
+    except:
+        return
 
 if __name__ == '__main__':
 	main()
