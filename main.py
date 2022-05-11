@@ -30,14 +30,17 @@ HX711_GAIN = 128
 WEIGHT_FILE = "wsens_state.pickle"  # Filename for storing/loading weight sensor calibration data
 
 # Platform stepper motor positions by row
-ROW1_POS = 10 
-ROW2_POS = 20
-ROW3_POS = 30
+ROW1_POS = 11.8
+ROW2_POS = 5.9
+ZERO_POS = 0
+ROW3_POS = -6
 
-PLAT_STEP_SPEED = 1000              # Speed of platform stepper rotations
+WEIGHT_VAR_TOL = 0.2
+
+PLAT_STEP_SPEED = 300              # Speed of platform stepper rotations
 LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
 
-LANE_ROTATIONS = 4                  # Number of rotations needed to dispense one item (will change)
+LANE_ROTATIONS = 6                  # Number of rotations needed to dispense one item (will change)
 
 NUM_ATTEMPTS = 2                    # Number of attempts to drop an item before giving up
 
@@ -116,7 +119,11 @@ class Machine():
     self.plat_vol = max_plat_vol        # Maximum item volume capacity of platform
     self.plat_weight = max_weight       # Maximum weight capacity of platform
     self.plat_full = False              # Indicates whether platform has reached max capacity
-    self.plat_location = 0              # Current row location of platform
+    self.plat_location = ZERO_POS              # Current row location of platform
+
+    # move platform to zero position
+    self.plat_stepper.rotate('ccw', PLAT_STEP_SPEED, 6)
+    self.plat_stepper.zero_position()
 
     # Weight sensor initializations/loads
     self.sensor = None
@@ -153,7 +160,7 @@ class Machine():
     """Controls motor to move platform to desired row"""
     pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS  # desired platform position
     cur = self.plat_stepper.get_position()
-    dir = 'cw' if (pos > cur) else 'ccw'
+    dir = 'ccw' if (pos > cur) else 'cw'
     dif = pos - cur
     num_rotate = dif if dif >= 0 else dif * -1  # number of steps
     
