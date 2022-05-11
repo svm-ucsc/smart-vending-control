@@ -259,17 +259,17 @@ class Machine():
     added_weight = 0                    # grams of weight added onto the platform
     
     print("Checking weight sensor")
-    print("Number of channels: ", len(channels))
     print("Added weight: {}, min_expected_weight: {}".format(added_weight, min_expected_weight))
     
     items_dropped = []
-    
+    print("Dropping {} items".format(len(items_dropped)))
     if (len(items_to_drop) == 1):
       if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
         items_dropped.append(items_to_drop[0])
 
     # If items are very close in weight, don't drop them at the same time
     elif (len(items_to_drop) == 2 and abs(items_to_drop[0].weight - items_to_drop[1].weight) < 10):
+      print("Dropping two items with similar weights")
       if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
         items_dropped.append(items_to_drop[0])
       if (self.single_item_drop(items_to_drop[1], NUM_ATTEMPTS) == True):
@@ -277,6 +277,7 @@ class Machine():
     
     # If items have sufficient difference in weights, drop at same time
     else:      
+      print("Dropping two items with different weights")
       while (added_weight < min_expected_weight):
         channels = [item.channel for item in items_to_drop]  # get motor channels
         print("About to rotate: {}".format(channels))
@@ -324,9 +325,10 @@ class Machine():
     """Rotates a motor to drop a single item. Returns success or failure"""
     attempts = 0
     self.sensor.set_prev_read(self.sensor.get_grams())
+    print("Now attempting to drop one item. Channel: {}".format(item.channel))
     while (attempts < num_tries):
       self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, LANE_ROTATIONS)
-      time.sleep(1)  # settling time
+      time.sleep(5)  # settling time
       if (self.sensor.detect_change()):
         return True
       attempts += 1
@@ -338,7 +340,7 @@ class Machine():
     print("Resetting platform to deliver items")
     self.plat_stepper.reset_position()
     self.ItemsReceived()
-    self.plat_full == False
+    self.plat_full = False
     return
 
   def ItemsReceived(self) -> bool:
@@ -346,8 +348,8 @@ class Machine():
     tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
     # TODO: Account for situation where items not received after a long period of time
     print("Waiting for items to be received")
-    
-    while (self.sensor.difference() > tolerance):
+    self.sensor.set_prev_read(self.sensor.get_grams())
+    while (self.sensor.detect_change() > tolerance):
       # wait some amount of time and then check weight again
       time.sleep(3)
     
@@ -356,9 +358,6 @@ class Machine():
     print("Items received")
     return True
   
-  def item_stuck(item, channel):
-    """Handles stuck item situation"""
-    pass
 
 # Define global machine object
 MACHINE = Machine()
@@ -377,24 +376,26 @@ def parse_payload(payload):
   return order  
 
 def on_order(client, userdata, msg):
-
-    order = json.loads(msg.payload)
-    print("Recieved order: " + str(order))
-    order_id = order['orderID']
+    try:
+      order = json.loads(msg.payload)
+      print("Recieved order: " + str(order))
+      order_id = order['orderID']
     
-    response_body = {
-        "status": "SUCCESS",
-        "order_id": order_id,
-    }
+      response_body = {
+          "status": "SUCCESS",
+          "order_id": order_id,
+      }
     
-    order = Order(order_id, parse_payload(msg.payload))
-    print("Items in order: {}".format(order.items))
-    vend_successful = MACHINE.dispense(order)
+      order = Order(order_id, parse_payload(msg.payload))
+      print("Items in order: {}".format(order.items))
+      vend_successful = MACHINE.dispense(order)
     
-    # publish success message
-    if(vend_successful): 
-        client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
-    GPIO.cleanup()
+      # publish success message
+      if(vend_successful): 
+          client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
+      GPIO.cleanup()
+    except KeyboardInterrupt:
+      GPIO.cleanup()
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
