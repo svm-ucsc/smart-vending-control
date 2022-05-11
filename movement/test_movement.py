@@ -1,51 +1,40 @@
 #!/usr/bin/python3
 
+import time
 import lane_stepper.build.ItemLaneSystem as ls
 import platform_stepper as ps
 
 
-def main():
-	plat_0 = ps.PlatformStepper(0)
-	plat_0.reset_position()
-	sys = ls.ItemLaneSystem()
+def machine_motor_test():
+    s = ps.PlatformStepper(0)
+    sys = ls.ItemLaneSystem()
 
+    start_rot = 6.0                         # Number of rotations to go to home on cold boot
+    lane_rot = 5.8                          # Number of rotations between item lanes
+        
+    eas_spd = 35                            # Best speed for eased motion
+    lin_spd = 500                           # Best speed for linear motion
 
-	print("ERROR TEST STARTING (nothing should run at this point!)")
-	sys.rotate_n([1, 5], ['cw'], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
-	print("ERROR TEST ENDING")
+    """
+    # Startup test (assumed to be run when the machine is cold booted)
+    s.rotate('ccw', 500, start_rot)
+    s.zero_position()
+        
+    # Reset position
+    print("Resetting position to home row...")
+    s.reset_position()
+    print("Reset complete.")
+    time.sleep(1)
 
-	print("SEQUENTIAL TEST STARTING")
-
-	# Example of moving the platform to the location of an item, dispensing, then coming back down
-	# in sequential order
-	plat_0.rotate('cw', 1000, 5)
-
-	sys.rotate(0, 'cw', 1.0, 1)
-	sys.rotate(1, 'cw', 1.0, 1)
-	sys.rotate(2, 'cw', 1.0, 1)
-
-	plat_0.rotate('ccw', 1000, 5)
-
-	print("SEQUENTIAL TEST ENDING")
-
-
-	print("PARALLEL TEST STARTING")
-
-	# Example of moving the platform to the location of an item, dispensing two at a time, then
-	# coming back down (with parallelization)
-	plat_0.rotate('ccw', 1000, 3)
-
-	try:
-		sys.rotate_n([3, 4, 5], ['cw', 'cw', 'cw'], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
-	except:
-		print("Unable to rotate")
-
-	plat_0.rotate('cw', 1000, 3)
-
-	print("PARALLEL TEST ENDING")
-
-	# Cleanup
-	sys.zero_all_pins()
+    # Ease motion test
+    print("Beginning ease motion test...")
+    s.rotate('ccw', eas_spd, 2 * lane_rot, True)
+    """
+    # Pretend dispense
+    sys.rotate_n([0,3], ['cw', 'cw'], [1.0, 1.0], [20.0, 20.0])
+     
+    s.reset_position()
+    print("Dispense motion test complete.")
 
 def continuous_plat_test():
     plat_0 = ps.PlatformStepper(0)
@@ -57,5 +46,13 @@ def continuous_plat_test():
     except:
         return
 
+
+def main():
+    # Run the test
+    machine_motor_test()
+
+    # Cleanup
+    sys.zero_all_pins()
+
 if __name__ == '__main__':
-	main()
+    main()
