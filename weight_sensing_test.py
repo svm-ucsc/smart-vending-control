@@ -33,7 +33,6 @@ def basic_tests(num_trials:int, sensor):
     """
     Performs basic functionality tests of weight sensors. Prints incremental progress.
     """
-    sensor.calibrate()
     print("---------- Now starting basic functionality tests ----------")
     print("The purpose of these tests is to ensure the sensors are working as expected.")
     print("You will weigh a few items. If the sensors are working properly, the measured weights")

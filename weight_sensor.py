@@ -169,9 +169,11 @@ class WeightSensor_HX711:
         :param tolerance: minimum squared difference for change to be registered
         """
         new_weight = self.get_grams()
+        print("New weight: {}".format(new_weight))
         if (new_weight - self.prev_read) ** 2 > tolerance:
             dif = new_weight - self.prev_read
             self.set_prev_read(new_weight)
+            print("dif: {}".format(dif))
             return dif
         else:
             return 0

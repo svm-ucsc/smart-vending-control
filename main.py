@@ -1,7 +1,6 @@
 import paho.mqtt.client as mqtt
 import json
 
-import os.path
 from os import path
 import RPi.GPIO as GPIO
 import pickle
@@ -10,6 +9,7 @@ import time
 import movement.lane_stepper.build.ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
+from weight_sensing_test import basic_tests
 
 CLIENT_ID = "pi1"                   # Identifier for machine
 
@@ -18,9 +18,10 @@ NUM_COLS = 3                        # Number of columns in machine
 
 BASE_WEIGHT = 0                     # Weight of inner platform on senors
 MAX_WEIGHT = 14000                  # Max weight (grams) of order that can be handled at one time
-MAX_PLAT_VOL = 20                   # Total volume of available space on the platform
+MAX_PLAT_VOL = 2000000              # Total volume of available space on the platform
 
 SUCCESS = True                      # Indicates if order handled successfully
+FAILURE = False                     # Indicates if an order fails
 
 PLAT_CHANNEL = 0                    # Motor hat channel of platform stepper motor
 
@@ -35,17 +36,17 @@ ROW2_POS = 5.9
 ZERO_POS = 0
 ROW3_POS = -6
 
-WEIGHT_VAR_TOL = 0.2
+WEIGHT_VAR_TOL = 0.2                # Fraction of weight variation tolerated
 
-PLAT_STEP_SPEED = 300              # Speed of platform stepper rotations
+PLAT_STEP_SPEED = 35                # Speed of platform stepper rotations
 LANE_STEP_SPEED = 1                 # Speed of lane stepper rotations
 
 LANE_ROTATIONS = 6                  # Number of rotations needed to dispense one item (will change)
 
 NUM_ATTEMPTS = 2                    # Number of attempts to drop an item before giving up
 
-MOTOR_CHANNELS = [[0, 3]
-                  [1, 4]
+MOTOR_CHANNELS = [[0, 3],
+                  [1, 4],
                   [2, 5]]
 
 
@@ -122,7 +123,7 @@ class Machine():
     self.plat_location = ZERO_POS              # Current row location of platform
 
     # move platform to zero position
-    self.plat_stepper.rotate('ccw', PLAT_STEP_SPEED, 6)
+    self.plat_stepper.rotate('ccw', 750, 6)
     self.plat_stepper.zero_position()
 
     # Weight sensor initializations/loads
@@ -136,6 +137,11 @@ class Machine():
         print("Generating weight sensor calibration...")
         self.sensor = WeightSensor_HX711(dout=HX711_DOUT_PIN, pd_sck=HX711_SDK_PIN, gain=HX711_GAIN)
         self.sensor.calibrate()
+        basic_tests(3, self.sensor)
+        calib_good = input("Satisfied with calibration? y/n? ")
+        while (calib_good != 'y'):
+          self.sensor.calibrate()
+          calib_good = input("Satisfied with calibration? y/n? ")
         
         pl_file = open(WEIGHT_FILE, 'ab')
         pickle.dump(self.sensor, pl_file)
@@ -159,20 +165,21 @@ class Machine():
   def move_platform(self, row) -> bool:
     """Controls motor to move platform to desired row"""
     pos = ROW1_POS if row == 1 else ROW2_POS if row == 2 else ROW3_POS  # desired platform position
-    cur = self.plat_stepper.get_position()
+    cur = self.plat_location
     dir = 'ccw' if (pos > cur) else 'cw'
     dif = pos - cur
-    num_rotate = dif if dif >= 0 else dif * -1  # number of steps
+    num_rotate = abs(dif)  # number of rotations
     
     try:
       print("Moving the platform {} steps".format(num_rotate))
       self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, num_rotate)
     except:
-      return False
+      print("Failed call to move platform")
+      return FAILURE
     
-    self.plat_location = row
+    self.plat_location = pos
     
-    return True
+    return SUCCESS
     
   @property
   def available_space(self):
@@ -217,7 +224,8 @@ class Machine():
         try:
           assert self.move_platform(row=row) == True
         except:
-          return False
+          print("Failed to move platform")
+          return FAILURE
       
       # Release order
       print("Preparing to drop items")
@@ -230,9 +238,10 @@ class Machine():
         item.decrement()
         if item.quantity == 0:
           order.remove_item(item)
+        next_items = []
     
     self.deliver()
-    return True
+    return SUCCESS
 
   def drop_items(self, items:list):
     """Releases an item from its item lane onto the platform"""
@@ -253,7 +262,7 @@ class Machine():
       v -= item.volume
       if w < 0 or v < 0:
         break
-      min_expected_weight += item.weight - (item.weight * tol)
+      min_expected_weight += item.weight - (item.weight * WEIGHT_VAR_TOL)
       items_to_drop.append(item)
         
     added_weight = 0                    # grams of weight added onto the platform
@@ -262,17 +271,20 @@ class Machine():
     print("Added weight: {}, min_expected_weight: {}".format(added_weight, min_expected_weight))
     
     items_dropped = []
-    print("Dropping {} items".format(len(items_dropped)))
+    print("Dropping {} items".format(len(items_to_drop)))
     if (len(items_to_drop) == 1):
       if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
+        print("Item dropped successfully")
         items_dropped.append(items_to_drop[0])
 
     # If items are very close in weight, don't drop them at the same time
     elif (len(items_to_drop) == 2 and abs(items_to_drop[0].weight - items_to_drop[1].weight) < 10):
       print("Dropping two items with similar weights")
       if (self.single_item_drop(items_to_drop[0], NUM_ATTEMPTS) == True):
+        print("Successfully dropped first item")
         items_dropped.append(items_to_drop[0])
       if (self.single_item_drop(items_to_drop[1], NUM_ATTEMPTS) == True):
+        print("Successfully dropped second item")
         items_dropped.append(items_to_drop[1])
     
     # If items have sufficient difference in weights, drop at same time
@@ -290,7 +302,7 @@ class Machine():
         while (change == 0):
           self.lane_sys.rotate_n(channels, dirs, speeds, num_steps)
           time.sleep(1)  # give items time to fall/settle
-          change = self.sensor.detect_change()
+          change = self.sensor.detect_change(5)
           
         added_weight += change
         print("Initial added weight: {}".format(added_weight))
@@ -298,7 +310,7 @@ class Machine():
         # Handle scenario where only 1/2 items dropped successfully
         if (added_weight > 0 and added_weight < min_expected_weight):
           # Determine which item is stuck
-          if abs(added_weight - items_to_drop[0].weight) < abs(added_weight - items_to_drop[1]):
+          if abs(added_weight - items_to_drop[0].weight) < abs(added_weight - items_to_drop[1].weight):
             stuck_item = items_to_drop[1]
             items_dropped.append(items_to_drop[0])
             items_to_drop.remove(items_to_drop[0])
@@ -328,11 +340,13 @@ class Machine():
     print("Now attempting to drop one item. Channel: {}".format(item.channel))
     while (attempts < num_tries):
       self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, LANE_ROTATIONS)
-      time.sleep(5)  # settling time
-      if (self.sensor.detect_change()):
-        return True
+      time.sleep(1)  # settling time
+      if (self.sensor.get_grams() >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
+        print("Item detected")
+        return SUCCESS
       attempts += 1
-    return False
+      print("Item not detected")
+    return FAILURE
 
 
   def deliver(self):
@@ -345,18 +359,18 @@ class Machine():
 
   def ItemsReceived(self) -> bool:
     """Checks that items have been removed from the platform and the weight has returned to initial"""
-    tolerance = 0.1  # acceptable variation from the initial in grams  TODO: Change this to exprimentally determined value
+    weight_on_plat = sum([item.weight - (item.weight*WEIGHT_VAR_TOL) for item in self.items_on_plat]) 
     # TODO: Account for situation where items not received after a long period of time
     print("Waiting for items to be received")
     self.sensor.set_prev_read(self.sensor.get_grams())
-    while (self.sensor.detect_change() > tolerance):
+    while (self.sensor.detect_change(0.1) < weight_on_plat):
       # wait some amount of time and then check weight again
-      time.sleep(3)
+      print("Grams on plat: {}".format(self.sensor.get_grams()))
     
     self.items_on_plat = []
     
     print("Items received")
-    return True
+    return SUCCESS
   
 
 # Define global machine object
@@ -393,7 +407,6 @@ def on_order(client, userdata, msg):
       # publish success message
       if(vend_successful): 
           client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
-      GPIO.cleanup()
     except KeyboardInterrupt:
       GPIO.cleanup()
 
@@ -414,7 +427,7 @@ def on_message(client, userdata, msg):
     print(msg.topic+" "+str(msg.payload))
 
 
-client = mqtt.Client(client_id=CLIENT_ID,clean_session=False)
+client = mqtt.Client(client_id=CLIENT_ID, clean_session=False)
 client.username_pw_set("lenatest", "password")
 client.on_connect = on_connect
 client.on_message = on_message
