@@ -394,6 +394,7 @@ def on_order(client, userdata, msg):
     # publish success message
     if(vend_successful): 
         client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
+    GPIO.cleanup()
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
