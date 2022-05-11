@@ -15,7 +15,7 @@ def machine_motor_test():
     eas_spd = 35                            # Best speed for eased motion
     lin_spd = 500                           # Best speed for linear motion
 
-    """
+    
     # Startup test (assumed to be run when the machine is cold booted)
     s.rotate('ccw', 500, start_rot)
     s.zero_position()
@@ -29,10 +29,15 @@ def machine_motor_test():
     # Ease motion test
     print("Beginning ease motion test...")
     s.rotate('ccw', eas_spd, 2 * lane_rot, True)
-    """
+    
     # Pretend dispense
+    print("Running through all pairs of item lines...")
     sys.rotate_n([0,3], ['cw', 'cw'], [1.0, 1.0], [20.0, 20.0])
-     
+    sys.rotate_n([1,4], ['cw', 'cw'], [1.0, 1.0], [20.0, 20.0])
+    sys.rotate_n([2,5], ['cw', 'cw'], [1.0, 1.0], [20.0, 20.0])
+    print("Pairwise test complete."
+
+    print("Resetting position...")
     s.reset_position()
     print("Dispense motion test complete.")
 
