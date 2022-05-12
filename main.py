@@ -34,7 +34,7 @@ WEIGHT_FILE = "wsens_state.pickle"  # Filename for storing/loading weight sensor
 ROW1_POS = 11.8
 ROW2_POS = 5.9
 ZERO_POS = 0
-ROW3_POS = -6
+ROW3_POS = -5.8
 
 WEIGHT_VAR_TOL = 0.2                # Fraction of weight variation tolerated
 
@@ -137,11 +137,11 @@ class Machine():
         print("Generating weight sensor calibration...")
         self.sensor = WeightSensor_HX711(dout=HX711_DOUT_PIN, pd_sck=HX711_SDK_PIN, gain=HX711_GAIN)
         self.sensor.calibrate()
-        basic_tests(3, self.sensor)
-        calib_good = input("Satisfied with calibration? y/n? ")
-        while (calib_good != 'y'):
-          self.sensor.calibrate()
-          calib_good = input("Satisfied with calibration? y/n? ")
+        #basic_tests(3, self.sensor)
+        #calib_good = input("Satisfied with calibration? y/n? ")
+        #while (calib_good != 'y'):
+        #  self.sensor.calibrate()
+        #  calib_good = input("Satisfied with calibration? y/n? ")
         
         pl_file = open(WEIGHT_FILE, 'ab')
         pickle.dump(self.sensor, pl_file)
@@ -172,7 +172,7 @@ class Machine():
     
     try:
       print("Moving the platform {} steps".format(num_rotate))
-      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, num_rotate)
+      self.plat_stepper.rotate(dir, PLAT_STEP_SPEED, num_rotate, True)
     except:
       print("Failed call to move platform")
       return FAILURE
@@ -342,7 +342,7 @@ class Machine():
     while (attempts < num_tries):
       self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, num_rotate)
       time.sleep(1)  # settling time
-      if (self.sensor.detect_change() >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
+      if (self.sensor.detect_change(1) >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
         print("Item detected")
         return SUCCESS
       attempts += 1
