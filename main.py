@@ -338,13 +338,15 @@ class Machine():
     attempts = 0
     self.sensor.set_prev_read(self.sensor.get_grams())
     print("Now attempting to drop one item. Channel: {}".format(item.channel))
+    num_rotate = LANE_ROTATIONS
     while (attempts < num_tries):
-      self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, LANE_ROTATIONS)
+      self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, num_rotate)
       time.sleep(1)  # settling time
-      if (self.sensor.get_grams() >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
+      if (self.sensor.detect_change() >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
         print("Item detected")
         return SUCCESS
       attempts += 1
+      num_rotate = 1
       print("Item not detected")
     return FAILURE
 
