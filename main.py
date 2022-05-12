@@ -342,7 +342,7 @@ class Machine():
     num_rotate = LANE_ROTATIONS
     while (attempts < num_tries):
       self.lane_sys.rotate(item.channel, 'cw', LANE_STEP_SPEED, num_rotate)
-      time.sleep(1)  # settling time
+      time.sleep(1.5)  # settling time
       if (self.sensor.detect_change(1) >= item.weight - (item.weight*WEIGHT_VAR_TOL)):
         print("Item detected")
         return SUCCESS
