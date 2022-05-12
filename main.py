@@ -9,7 +9,7 @@ import time
 import movement.lane_stepper.build.ItemLaneSystem as ils
 from movement.platform_stepper import *
 from weight_sensor import *
-from weight_sensing_test import basic_tests
+#from weight_sensing_test import basic_tests
 
 CLIENT_ID = "pi1"                   # Identifier for machine
 
