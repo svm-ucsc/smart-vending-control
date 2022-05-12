@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # For use with the HX711 24-bit ADC to be used for item weight detection
-# 
+#
 # HX711 datasheet: https://cdn.sparkfun.com/datasheets/Sensors/ForceFlex/hx711_english.pdf
 # Adapted from https://github.com/j-dohnalek/hx711py/blob/master/hx711.py
 
@@ -40,8 +40,9 @@ class WeightSensor_HX711:
         # Setup the GPIO Pin as input
         GPIO.setup(self.DOUT, GPIO.IN)
 
+        #self.power_up()
         self.set_gain(gain)
-        time.sleep(1)
+        #time.sleep(1)
 
     def is_ready(self):
         """
@@ -78,7 +79,7 @@ class WeightSensor_HX711:
         param: offset: offset
         """
         self.OFFSET = offset
-    
+
     def set_prev_read(self, weight):
         """
         Stores a specified weight for later reference
@@ -115,7 +116,7 @@ class WeightSensor_HX711:
         byte_vals = []
         while not self.is_ready():
             pass
-        
+
         # Read 3 bytes
         for i in range(3):
             count = 0
@@ -128,11 +129,11 @@ class WeightSensor_HX711:
         for i in range(self.GAIN):
             GPIO.output(self.PD_SCK, True)
             GPIO.output(self.PD_SCK, False)
-        
+
         # Combine bytes (MSB)
         value = ((byte_vals[0] << 16) | (byte_vals[1] << 8) | byte_vals[2])
-        
-        # Convert from 2's complement 
+
+        # Convert from 2's complement
         value = -(value & 0x800000) + (value & 0x7fffff)
 
         return int(value)
@@ -152,7 +153,7 @@ class WeightSensor_HX711:
             elapsed = time.time()
         print("Done with warmup")
 
-    def read_average(self, num_samples=8):
+    def read_average(self, num_samples=16):
         """
         Calculate average value from
         :param times: measure x amount of time to get average
@@ -161,7 +162,7 @@ class WeightSensor_HX711:
         for i in range(num_samples):
             sum += self.read()
         return sum / num_samples
-    
+
     def detect_change(self, tolerance) -> bool:
         """
         Detects whether a change in weight has occurred.
@@ -180,20 +181,23 @@ class WeightSensor_HX711:
 
     def get_grams(self, num_samples=16):
         """
-        :param times: Set value to calculate average, 
-        be aware that high number of times will have a 
-        slower runtime speed.        
+        :param times: Set value to calculate average,
+        be aware that high number of times will have a
+        slower runtime speed.
         :return float weight in grams
         """
-        sum = 0
+        s = 0
         samples = 0
         for i in range(num_samples):
             val = (self.read()-self.OFFSET)/self.SCALE
             # Account for extreme outliers
             if (val > self.MIN_CAP and val < self.MAX_CAP):
                 samples += 1
-                sum += val
-        grams = sum/samples if samples > 0 else -1
+                s += val
+            print("val: {}".format(val))
+        print("Num samples: {}".format(samples))
+        grams = s/samples if samples > 0 else 0
+        print("grams: {}".format(grams))
         return grams
 
     def calc_offset(self, num_samples=16):
@@ -226,7 +230,7 @@ class WeightSensor_HX711:
         while not self.is_ready():
             pass
         readyCheck = input("Remove any items from platform. Press any key when ready.")
-        offset = self.calc_offset(num_samples)
+        offset = self.read_average(num_samples)
         print("Value at zero (offset): {}".format(offset))
         self.set_offset(offset)
         print("Please place an item of known weight on the scale.")
