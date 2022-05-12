@@ -160,6 +160,7 @@ class Machine():
 
     print("Resetting platform position...")
     self.plat_stepper.reset_position()
+    self.plat_location = ZERO_POS
  
   
   def move_platform(self, row) -> bool:
