@@ -406,7 +406,10 @@ def on_order(client, userdata, msg):
     
       # publish success message
       if(vend_successful): 
+          print("Vend successful")
           client.publish(CLIENT_ID+"/order/status", payload=json.dumps(response_body), qos=1)
+      else:
+        print("Vend unsuccessful")
     except KeyboardInterrupt:
       GPIO.cleanup()
 
