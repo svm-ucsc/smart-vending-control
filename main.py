@@ -356,6 +356,7 @@ class Machine():
     """Moves platform to center and waits for user to take items"""
     print("Resetting platform to deliver items")
     self.plat_stepper.reset_position()
+    self.plat_location = ZERO_POS
     self.ItemsReceived()
     self.plat_full = False
     return
