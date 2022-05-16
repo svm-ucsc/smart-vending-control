@@ -1,5 +1,8 @@
 from weight_sensor import *
 from movement import platform_stepper as ps
+import time
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 def test_round_dif_items(num_trials:int, sensor):
     total_error = 0
@@ -159,14 +162,56 @@ def calibration_location_tests(num_trials:int, sensor):
     print("Right side results: ")
     print("\tAverage measurement error(grams): {:.3f}".format(r_error/num_trials))
     print("\tAverage measurement error(percent): {:.3f}%".format(r_percent/num_trials))
+
+def persist_test(sensor, t):
+    """The purpose of this test is to determine the persistence of calibration over time.
+    params: t = minutes to run test
+    """
+    print("The purpose of this test is to determine how well the calibration persists over time.")
+    actual_weight = input("enter the known weight of the item you will be testing with:\n>")
+    sensor.calibrate()
+    """
+    basic_tests(3, sensor)
+    calib_good = input("Satisfied with calibration? y/n? ")
     
+    # Redo calibration until satisfied
+    while (calib_good != 'y'):
+        sensor.calibrate()
+        basic_tests(3, sensor)
+        calib_good = input("Satisfied with calibration? y/n? ")
+    """
+    input("Place the testing item on the platform. Press any key when ready.\n>")
+    x = []  # times
+    y = []  # corresponding measurements
+    start = time.time()
+    end = start + (t * 60)
+    def add_point():
+        x.append(time.time())
+        y.append(sensor.get_grams())
+
+        plt.cla()
+        plt.plot(x, y)
+
+    ani = FuncAnimation(plt.gcf(), add_point, interval = 1000)
+    plt.tight_layout()
+    plt.show()
+
+
+
+    
+
+    
+
+def time_to_zero(sensor):
+    pass
 
 def main():
     try:
       my_sensor = WeightSensor_HX711(dout=17, pd_sck=18, gain=128)
       basic_tests(3, my_sensor)
-      my_sensor.reset()
-      calibration_location_tests(3, my_sensor)
+      persist_test(my_sensor, 60)
+      #my_sensor.reset()
+      #calibration_location_tests(3, my_sensor)
       GPIO.cleanup()
     except:
       GPIO.cleanup()
