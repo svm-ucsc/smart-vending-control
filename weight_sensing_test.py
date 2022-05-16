@@ -1,8 +1,7 @@
 from weight_sensor import *
 from movement import platform_stepper as ps
 import time
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+import csv
 
 def test_round_dif_items(num_trials:int, sensor):
     total_error = 0
@@ -170,40 +169,48 @@ def persist_test(sensor, t):
     print("The purpose of this test is to determine how well the calibration persists over time.")
     actual_weight = input("enter the known weight of the item you will be testing with:\n>")
     sensor.calibrate()
-    """
-    basic_tests(3, sensor)
-    calib_good = input("Satisfied with calibration? y/n? ")
     
-    # Redo calibration until satisfied
-    while (calib_good != 'y'):
-        sensor.calibrate()
-        basic_tests(3, sensor)
-        calib_good = input("Satisfied with calibration? y/n? ")
-    """
     input("Place the testing item on the platform. Press any key when ready.\n>")
-    x = []  # times
-    y = []  # corresponding measurements
+    
+    entries = []
     start = time.time()
-    end = start + (t * 60)
-    def add_point():
-        x.append(time.time())
-        y.append(sensor.get_grams())
-
-        plt.cla()
-        plt.plot(x, y)
-
-    ani = FuncAnimation(plt.gcf(), add_point, interval = 1000)
-    plt.tight_layout()
-    plt.show()
-
-
-
+    end = start + (t * 60)        
     
+    while (time.time() < end):
+        entries.append([time.time()-start, sensor.get_grams()])
 
+    with open('persist_data', 'w') as f:
+        write = csv.writer(f)
+        write.writerow(['Time', 'Weight(g)'])
+        write.writerows(entries)
+
+
+  
+
+def time_to_zero(sensor, num_items:int, trials_per_item:int=3):
+    """Test to determine how long it takes for the weight sensor readings to return to zero after
+    removing an item from the platform.
+    """
+
+    def trial():
+        for i in range(trials_per_item):
+            input("Place the item on the platform. Press any key to continue.\n>")
+            start = time.time()
+            # let the item sit for three seconds
+            while (time.time < start + 3):
+                pass
+            input("Remove the item from the platform. Press any key to continue.\n>")
+            start = time.time()
+            while (sensor.get_grams > 0):
+                pass
+            elapsed_time = time.time() - start
+            print("\tElapsed time to return to zero: {}".format(elapsed_time))
     
-
-def time_to_zero(sensor):
-    pass
+    for i in range(num_items):
+        sensor.calibrate()
+        print("-----Now testing with item {}.-----".format(i))
+        trial()
+    
 
 def main():
     try:
