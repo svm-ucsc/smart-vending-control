@@ -246,9 +246,6 @@ class Machine():
 
   def drop_items(self, items:list):
     """Releases an item from its item lane onto the platform"""
-    if self.plat_full == True:
-      self.deliver()
-    
     print("Dropping items")
     
     tol = 0 # percent tolerance of weight difference to confirm successful item drop
@@ -331,6 +328,7 @@ class Machine():
       self.items_on_plat.append(item)
       if (self.available_weight <= 0 or self.available_space <= 0):
         self.plat_full = True
+        self.deliver()
     
     return items_dropped
   
