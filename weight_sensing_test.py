@@ -1,3 +1,4 @@
+from torch import true_divide
 from weight_sensor import *
 from movement import platform_stepper as ps
 import time
@@ -211,6 +212,15 @@ def time_to_zero(sensor, num_items:int, trials_per_item:int=3):
         print("-----Now testing with item {}.-----".format(i))
         trial()
     
+def get_grams_continuous(sensor):
+    """Continuously reads the weight in grams that is on the platform."""
+    sensor.calibrate()
+    while(True):
+        try:
+            sensor.get_grams()
+        except KeyboardInterrupt:
+            break
+
 
 def main():
     try:
